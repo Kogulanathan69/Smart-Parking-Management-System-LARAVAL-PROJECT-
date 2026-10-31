@@ -110,7 +110,7 @@ it('rejects an invalid QR when replaying an existing exit payment key', function
     $this->actingAs($this->staff);
 
     settle($payload, ['idempotency_key' => $key])->assertOk();
-    settle('SPT1-nothex', ['idempotency_key' => $key])->assertUnprocessable();
+    settle('SPT1-nothex', ['idempotency_key' => $key])->assertNotFound();
 
     expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
         ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1);
