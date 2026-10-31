@@ -116,6 +116,28 @@ it('rejects an invalid QR when replaying an existing exit payment key', function
         ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1);
 });
 
+it('rejects cross-session replay of a pending online payment', function () {
+    [$firstSession, $firstPayload] = recordEntry($this->staff);
+    [$secondSession, $secondPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($firstPayload, [
+        'idempotency_key' => $key,
+        'payment_method' => 'online',
+    ])->assertStatus(202)->assertJsonPath('status', 'payment_pending');
+
+    settle($secondPayload, ['idempotency_key' => $key])
+        ->assertStatus(409)
+        ->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $firstSession->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $firstSession->id)->value('status'))->toBe(Payment::PENDING)
+        ->and(Payment::where('parking_session_id', $secondSession->id)->count())->toBe(0)
+        ->and($secondSession->refresh()->status)->toBe(ParkingSession::ACTIVE)
+        ->and($secondSession->receipt)->toBeNull();
+});
+
 it('rejects insufficient cash and keeps the session open', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
