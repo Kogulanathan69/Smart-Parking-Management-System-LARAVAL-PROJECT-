@@ -54,6 +54,13 @@ class ExitService
     {
         $previous = $this->payments->findByIdempotencyKey($input['idempotency_key']);
         if ($previous) {
+            // A replay must belong to the same ticket and parking session.
+            // Resolve even used tickets so legitimate retries remain idempotent.
+            $ticket = $this->tickets->resolve($input['qr_payload']);
+            if ($previous->parking_session_id !== $ticket->parking_session_id) {
+                throw new ParkingException('Idempotency key already used for another session.', 'idempotency_conflict', 409);
+            }
+
             return $this->replay($previous);
         }
 
