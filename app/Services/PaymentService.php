@@ -81,6 +81,13 @@ class PaymentService
      */
     public function resolvePending(Payment $payment, bool $succeeded, User $by, ?string $externalReference = null, ?string $reason = null): Payment
     {
+        if ($succeeded) {
+            throw new \App\Exceptions\ParkingException(
+                'Manual confirmation of gateway payments is disabled until a verified payment gateway is integrated.',
+                'gateway_verification_required',
+                409
+            );
+        }
         return DB::transaction(function () use ($payment, $succeeded, $by, $externalReference, $reason) {
             ParkingSession::whereKey($payment->parking_session_id)->lockForUpdate()->first();
             $locked = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();

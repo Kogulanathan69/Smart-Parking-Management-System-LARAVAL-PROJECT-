@@ -101,7 +101,7 @@ it('requires a reference for card payments', function () {
     settle($payload, ['payment_method' => 'card', 'external_reference' => 'POS-4411'])->assertOk();
 });
 
-it('does not authorise exit while an online payment is pending, then completes on confirmation', function () {
+it('blocks manual confirmation of pending online payments without gateway verification', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
 
@@ -114,11 +114,15 @@ it('does not authorise exit while an online payment is pending, then completes o
     settle($payload)->assertStatus(409)->assertJsonPath('error_code', 'payment_pending');
 
     $paymentId = $pending->json('payment.id');
-    $this->postJson("/api/v1/staff/payments/{$paymentId}/confirm", ['external_reference' => 'GW-1'])
-        ->assertOk()->assertJsonPath('status', 'completed');
-    $this->postJson("/api/v1/staff/payments/{$paymentId}/confirm")->assertStatus(409);
 
-    expect($session->refresh()->status)->toBe('completed');
+    $this->postJson("/api/v1/staff/payments/{$paymentId}/confirm", ['external_reference' => 'GW-1'])
+        ->assertStatus(409)
+        ->assertJsonPath('error_code', 'gateway_verification_required');
+
+    expect(Payment::findOrFail($paymentId)->status)->toBe(Payment::PENDING)
+        ->and($session->refresh()->status)->toBe(ParkingSession::ACTIVE)
+        ->and($session->receipt)->toBeNull()
+        ->and($session->qrTicket->status)->toBe(QrTicket::ACTIVE);
 });
 
 it('keeps the session open when an online payment fails', function () {
