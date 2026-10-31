@@ -104,6 +104,18 @@ it('rejects reuse of an exit idempotency key for another parking session', funct
         ->and($secondSession->receipt)->toBeNull();
 });
 
+it('rejects an invalid QR when replaying an existing exit payment key', function () {
+    [$session, $payload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk();
+    settle('SPT1-nothex', ['idempotency_key' => $key])->assertUnprocessable();
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1);
+});
+
 it('rejects insufficient cash and keeps the session open', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
