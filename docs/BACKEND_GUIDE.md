@@ -1,0 +1,133 @@
+# Smart Parking Backend: Setup, Integration and Status
+
+## 1. Environment setup (Windows + Laravel Herd)
+
+1. Use PHP 8.4 or newer (Herd: PHP 8.5) and MySQL 8.4. The locked dependencies need PHP ≥ 8.4.
+2. `composer install`
+3. `copy .env.example .env`, then set `DB_DATABASE=smart_parking`, `DB_USERNAME` and `DB_PASSWORD`. **Never commit `.env`.**
+4. `php artisan key:generate`. Skip this if `.env` already has an `APP_KEY`. Changing the key makes stored QR tokens and encrypted sessions unreadable.
+5. `php artisan migrate`. Every new migration is additive. The users migration uses `hasColumn` guards, so existing data is kept.
+6. Seed:
+   * every environment: `php artisan db:seed --class=ReferenceDataSeeder` (vehicle types, zone types, payment methods, shifts; safe to re-run)
+   * local only: `php artisan db:seed` also seeds the example zones A–E, packages, **example (not approved) prices** and demo users `admin|staff|auditor|customer@smart-parking.test`. Their password comes from `SEED_DEMO_PASSWORD`, or a random one is printed.
+7. Create the first Super Admin: `php artisan parking:create-super-admin`. The password is prompted (min 12 characters, mixed case, number and symbol) and never passed as an argument. At most 2 active Super Admins are allowed.
+8. Scheduler (inspections): add `php artisan schedule:work` locally, or a cron job for `schedule:run` in production.
+9. Tests: `php artisan test`. The MySQL race tests are separate: point `DB_*` at a **throwaway** database, then run `php artisan test tests/Concurrency`.
+
+Production checklist: `APP_DEBUG=false`, HTTPS, `SESSION_SECURE_COOKIE=true`, `SESSION_ENCRYPT=true`, a real mail driver for password resets, and a queue worker if notifications are later queued.
+
+## 2. Architecture
+
+```
+routes/web.php       Fortify auth (auto) + role dashboards (DashboardController)
+routes/api.php       /api/v1 JSON API, web session + CSRF, auth, active, role:…
+app/Http/Requests    Form Request validation (one per write endpoint)
+app/Http/Controllers/Api/{Customer,Staff,Admin,Report}   thin controllers
+app/Services         business logic (EntryService, ExitService, PricingService, SlotAllocator,
+                     PaymentService, QrTicketService, SafetyService, EvidenceService,
+                     ShiftService, ZoneService, VehicleService, UserAccountService,
+                     ReportService, SettingsService, AuditLogger)
+app/Contracts        hardware/external boundaries (PlateRecognizer, TicketPrinter,
+                     GateController, PaymentGateway); simulated drivers in Services/Integrations
+app/Policies         record-level authorisation (IDOR protection)
+app/Http/Resources   JSON shapes
+config/parking.php   business configuration + defaults for runtime settings
+```
+
+**Authorisation** has 3 layers. (1) `role:` middleware, which runs *before* route-model binding. (2) Policies for record ownership: customers only ever see their own vehicles, sessions, receipts, complaints and evidence. (3) `UserAccountService` for the account-management matrix:
+
+| Actor | Can create | Can suspend or change |
+|---|---|---|
+| Super Admin | admin, staff, auditor, customer | everyone except themselves. Another Super Admin can be suspended, but never the last active one. |
+| Admin | staff, customer | staff, customer |
+| Others | – | – |
+
+Super Admins can only be created through the CLI. Account limits are 2 Super Admins and 2 Admins (`config/parking.php`).
+
+**Double-allocation protection** has 3 levels: `SELECT … FOR UPDATE` on the slot, a compare-and-set update (`status` must still be `available`), and unique indexes on `parking_sessions.open_slot_key` and `open_vehicle_key`. The last two are filled only while a session is open. This was verified with real concurrent processes on MySQL: 10 racers for 3 slots gave exactly 3 entries, and 6 racers for 1 plate gave exactly 1.
+
+**Financial safety:** money is stored as integers. Exit settlement runs in one transaction with a row lock on the session. Payments have a unique `idempotency_key`. A used QR ticket can't be used again. A pending or failed payment never authorises the gate.
+
+**No retroactive pricing:** rates are append-only versions (`package_rates.version`, `effective_from/to`). At entry the rate values **and** the pricing policy are copied into `parking_sessions.pricing_snapshot`, and exit charges are always calculated from that snapshot.
+
+## 3. Pricing rules as implemented
+
+| Package | Billing |
+|---|---|
+| Short-time (`hourly`) | per started block (default 60 min), minimum 1 block. Optional cap per 24 h (`overtime_daily_cap_minor`). |
+| Daily / Weekly / Monthly (`fixed`) | Fixed price for 1440 / 10080 / 43200 minutes (weekly = 7 days, monthly = 30 days) |
+| Night (`night`) | Fixed price until the next `pricing.night_end_time` (default 06:00 Asia/Colombo) |
+| Safety (`addon`) | Added automatically in safety-type zones: price × started days, plus safety overtime per block |
+
+Overtime: grace defaults to 15 minutes (set per rate). After grace, overtime is charged per started block × `overtime_hourly_minor`. Each overtime day is capped at `overtime_daily_cap_minor` (set it to the daily rate, BRD §6), and later days are charged separately. Early exit (weekly/monthly with `allows_early_exit_credit`): price × used days / package days, rounded half-up, with a minimum number of days. If prepaid, the unused amount becomes credit or a refund.
+
+## 4. Runtime settings (`PUT /api/v1/admin/settings/{key}`)
+
+| Key | Default | Who | Status |
+|---|---|---|---|
+| `pricing.grace_minutes` | 15 | Admin, SA | BRD |
+| `pricing.billing_block_minutes` | 60 | Admin, SA | **Pending decision** (rounding) |
+| `pricing.overtime_starts_from` | `package_end` | Admin, SA | **Pending** (`grace_end` alternative) |
+| `pricing.night_end_time` | `06:00` | Admin, SA | **Pending** |
+| `pricing.early_exit_method` | `prorate_daily` | Admin, SA | **Pending** (`none` alternative) |
+| `pricing.early_exit_minimum_days` | 1 | Admin, SA | **Pending** |
+| `pricing.tax_basis_points` | 0 | Admin, SA | **Pending** (taxes) |
+| `refund.default_resolution` | `credit` | Admin, SA | **Pending** |
+| `refund.auto_approve_limit_minor` | 0 (all refunds need approval) | Admin, SA | **Pending** |
+| `refund.credit_expiry_days` | null (no expiry) | Admin, SA | **Pending** |
+| `safety.inspections_per_day` | 2 | Admin, SA | BRD |
+| `safety.require_exit_inspection` | true | Admin, SA | BRD §8 "safety checks" |
+| `exit.release_slot_on` | `settlement` | SA only | `gate` = slot freed only after `confirm-left` |
+| `notifications.notify_admins_on_damage` | true | Admin, SA | BRD §9 |
+| `attendance.late_after_minutes` | 10 | Admin, SA | **Pending** |
+
+## 5. Frontend integration guide (Blade + Bootstrap + JS)
+
+* Make sure the layout contains `<meta name="csrf-token" content="{{ csrf_token() }}">`. With `fetch`, send `X-CSRF-TOKEN` (from the meta tag) or `X-XSRF-TOKEN` (from the cookie), plus `Accept: application/json`, and `credentials: 'same-origin'`.
+* Fortify views must be created at `resources/views/auth/{login,register,forgot-password,reset-password,confirm-password,two-factor-challenge,verify-email}.blade.php`. Until a view exists, its GET route returns `501` JSON. Forms post to `/login`, `/register` and so on. A non-JSON login is redirected to the role dashboard.
+* The dashboard routes currently return JSON summaries. The frontend can render a Blade page and fetch `/…/dashboard` with `Accept: application/json`, or the routes can later be switched to return views that use the same data.
+* Money: show `amount_minor / 100` with 2 decimals, or use the formatted string fields. Never do money arithmetic in floating point. Totals come from the server.
+* Gate screen flow: lookup (`GET /staff/vehicles/lookup?plate=`), then availability (`GET /staff/availability?vehicle_category_id=`), then `POST /staff/entries`, then print `ticket.qr_svg`. Exit: scan into an input, `POST /staff/exits/preview`, show `quote.lines`, then `POST /staff/exits/settle` with a UUID `idempotency_key` created when the exit screen opens.
+* Error display: show `message`. Branch on `error_code` (for example, on `no_slot_available` offer another zone from availability).
+
+## 6. Module completion report
+
+All modules below were verified with automated tests: **113 feature tests / 536 assertions passing on both SQLite and MySQL 8.0**, plus 2 multi-process MySQL race tests (passed 3 times in a row). Pint formatting and `php -l` are clean.
+
+| # | Module | Status | Tests |
+|---|---|---|---|
+| 1 | Auth & authorisation (Fortify, customer-only signup, role redirects, suspension, rate limit, CLI Super Admin, account limits, last-Super-Admin guard) | Done | AuthenticationTest, RolePermissionTest |
+| 2 | Database architecture (29 new tables, FKs, unique and lookup indexes, additive migrations, rollback verified on MySQL) | Done | all |
+| 3 | Zones & slots (configurable zone types, category restrictions, capacity changes, live occupancy, slot states) | Done | ZoneSlotTest |
+| 4 | Vehicles (plate normalisation, plate-less references, customer ownership, history) | Done | EntryTest, CustomerPortalTest |
+| 5 | Packages & pricing (versioned rates, snapshot, grace, overtime cap, night, weekly/monthly, early exit, safety, preview) | Done. Business values pending. | PricingTest |
+| 6 | Entry & QR tickets (allocation, duplicate prevention, hashed and encrypted tokens, print and reissue) | Done | EntryTest, Concurrency |
+| 7 | Exit & payments (preview, settlement, idempotency, cash/card/online-pending, prepay, credit/refund, receipts, gate hook, release-on-gate) | Done | ExitPaymentTest |
+| 8 | Safety parking (entry/routine/exit inspections, frequency, missed marking, incidents, damage alerts, private evidence) | Done | SafetyTest |
+| 9 | Staff & shifts (shifts, assignments, cross-midnight, check-in/out, late/left-early, leave + replacement, coverage gaps, performance) | Done | ShiftAttendanceTest |
+| 10 | Reports & dashboards (overview, occupancy, financial, staff performance, sessions, payments, inspections, 5 dashboards) | Done | several |
+| 11 | Audit & notifications (immutable audit log with secrets redacted, auditor findings, database notifications with delivery log, complaints) | Done | AuditorAndAuditTest, CustomerPortalTest |
+| 12 | Auditor read-only: every POST/PUT/PATCH/DELETE API route is checked automatically for 403 | Done | AuditorAndAuditTest |
+
+### Known limitations / pending work
+
+* **BRD §19 decisions** are behind the settings listed in §4. They need business approval, not code changes. Example prices and slot counts exist in the local seeder only.
+* Partial payments are not supported. At exit the balance must be paid in one payment. Discounts and taxes are 0 by default.
+* SMS/email channels are not configured, so notifications use the database channel only. Add `mail` or an SMS channel in each notification's `via()` once providers are chosen.
+* Staff can manually confirm "online" payments, because no gateway exists yet. This is audited. Consider limiting it to Admins once a real gateway is integrated.
+* Not done: data retention / photo purge jobs (policy pending), complaint escalation rules (pending), customer credit **redemption** at exit (credits are recorded and shown, but not yet applied automatically).
+* Auth pages (Blade) are owned by the frontend branch.
+
+## 7. Hardware / external integrations still to build
+
+| Interface | Current driver | Future work |
+|---|---|---|
+| `App\Contracts\PlateRecognizer` | `manual` (staff types the plate) | Python AI OCR service: send the camera frame, return `{plate, confidence}`. Staff still confirms. |
+| `App\Contracts\TicketPrinter` | `browser` (`window.print()` of `qr_svg`) | Thermal/ESC-POS QR sticker printer |
+| QR scanner | Keyboard-wedge scanner typing into the exit input | none needed (USB HID) |
+| `App\Contracts\GateController` | `log` (simulated) | Gate relay/controller. Called only after confirmed settlement. Wire `confirm-left` to the gate loop sensor when `exit.release_slot_on = gate`. |
+| `App\Contracts\PaymentGateway` | `none` (online = pending + manual confirm) | Card terminal / online gateway with webhook calling `PaymentService::resolvePending` + `ExitService::completeAfterPayment` |
+| CCTV | – | Out of scope for the backend. Evidence upload already accepts photos. |
+| SMS / email | – | Notification channels |
+
+To add a driver, implement the interface, register it in `AppServiceProvider::DRIVERS`, and select it with `PARKING_*_DRIVER` in `.env`.

@@ -1,5 +1,12 @@
 <?php
 
+use App\Models\ParkingPackage;
+use App\Models\ParkingSession;
+use App\Models\ParkingZone;
+use App\Models\User;
+use App\Models\VehicleCategory;
+use Database\Seeders\ParkingLayoutSeeder;
+use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -7,26 +14,16 @@ use Tests\TestCase;
 |--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
-|
-| The closure you provide to your test functions is always bound to a specific PHPUnit test
-| case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
-| need to change it using the "pest()" function to bind different classes or traits.
-|
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*
 |--------------------------------------------------------------------------
 | Expectations
 |--------------------------------------------------------------------------
-|
-| When you're writing tests, you often need to check that values meet certain conditions. The
-| "expect()" function gives you access to a set of "expectations" methods that you can use
-| to assert different things. Of course, you may extend the Expectation API at any time.
-|
 */
 
 expect()->extend('toBeOne', function () {
@@ -35,16 +32,50 @@ expect()->extend('toBeOne', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Functions
+| Helpers
 |--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
 */
 
-function something()
+function seedParking(): void
 {
-    // ..
+    (new ReferenceDataSeeder)->run();
+    (new ParkingLayoutSeeder)->run();
+}
+
+function userWithRole(string $role, array $attributes = []): User
+{
+    return User::factory()->role($role)->create($attributes);
+}
+
+function category(string $code): VehicleCategory
+{
+    return VehicleCategory::where('code', $code)->firstOrFail();
+}
+
+function zone(string $code): ParkingZone
+{
+    return ParkingZone::where('code', $code)->firstOrFail();
+}
+
+function package(string $code): ParkingPackage
+{
+    return ParkingPackage::where('code', $code)->firstOrFail();
+}
+
+/**
+ * Record an entry through the API and return [session, qr_payload].
+ *
+ * @return array{0: ParkingSession, 1: string}
+ */
+function recordEntry(User $staff, array $overrides = []): array
+{
+    $response = test()->actingAs($staff)->postJson('/api/v1/staff/entries', array_merge([
+        'plate_number' => 'WP CAB-'.random_int(1000, 9999),
+        'vehicle_category_id' => category('car')->id,
+        'parking_zone_id' => zone('B')->id,
+        'parking_package_id' => package('daily')->id,
+    ], $overrides));
+    $response->assertCreated();
+
+    return [ParkingSession::where('uuid', $response->json('data.uuid'))->firstOrFail(), $response->json('ticket.qr_payload')];
 }
