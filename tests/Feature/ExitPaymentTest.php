@@ -85,6 +85,25 @@ it('is idempotent: repeating a settle request never charges twice', function () 
     expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1);
 });
 
+it('rejects reuse of an exit idempotency key for another parking session', function () {
+    [$firstSession, $firstPayload] = recordEntry($this->staff);
+    [$secondSession, $secondPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($firstPayload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('status', 'completed');
+
+    settle($secondPayload, ['idempotency_key' => $key])->assertStatus(409)
+        ->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $firstSession->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $secondSession->id)->count())->toBe(0)
+        ->and($secondSession->refresh()->status)->toBe(ParkingSession::ACTIVE)
+        ->and($secondSession->qrTicket->status)->toBe(QrTicket::ACTIVE)
+        ->and($secondSession->receipt)->toBeNull();
+});
+
 it('rejects insufficient cash and keeps the session open', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
