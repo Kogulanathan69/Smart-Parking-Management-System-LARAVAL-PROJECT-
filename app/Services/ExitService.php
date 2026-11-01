@@ -182,6 +182,9 @@ class ExitService
 
         return DB::transaction(function () use ($session, $staff, $input) {
             $locked = ParkingSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
+            if ($previous = $this->payments->findByIdempotencyKey($input['idempotency_key'])) {
+                return $this->replayPrepayment($previous, $locked, $input);
+            }
             if ($locked->status !== ParkingSession::ACTIVE) {
                 throw new ParkingException('Session is not active.', 'invalid_session_state', 409);
             }
