@@ -148,6 +148,14 @@ class ExitService
                 throw new ParkingException('Idempotency key already used for another session.', 'idempotency_conflict', 409);
             }
 
+            // Retrying a key must not silently accept a different amount or method.
+            $requestedMethod = PaymentMethod::where('code', $input['payment_method'])->first();
+            if (! $requestedMethod
+                || $previous->payment_method_id !== $requestedMethod->id
+                || $previous->amount_minor !== (int) $input['amount_minor']) {
+                throw new ParkingException('Idempotency key already used with different payment details.', 'idempotency_conflict', 409);
+            }
+
             return $previous;
         }
 
