@@ -61,6 +61,12 @@ class ExitService
                 throw new ParkingException('Idempotency key already used for another session.', 'idempotency_conflict', 409);
             }
 
+            // Reissued (voided) tickets cannot replay an existing payment.
+            // The used ticket remains valid for a legitimate completed-exit retry.
+            if ($ticket->status === QrTicket::VOID) {
+                throw new ParkingException('This QR ticket has been revoked.', 'ticket_already_used', 409);
+            }
+
             return $this->replay($previous);
         }
 
