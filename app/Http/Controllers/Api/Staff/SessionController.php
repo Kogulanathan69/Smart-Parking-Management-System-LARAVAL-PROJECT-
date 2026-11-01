@@ -11,6 +11,7 @@ use App\Http\Resources\PaymentResource;
 use App\Models\ParkingSession;
 use App\Models\Vehicle;
 use App\Services\AuditLogger;
+use App\Services\BillPresenter;
 use App\Services\ExitService;
 use App\Services\QrTicketService;
 use Illuminate\Http\JsonResponse;
@@ -63,6 +64,23 @@ class SessionController extends Controller
         $audit->log('ticket.reissued', $session);
 
         return response()->json(['ticket' => $tickets->printable($session->fresh(['vehicle', 'zone', 'slot', 'package', 'qrTicket']))]);
+    }
+
+    /**
+     * Final bill: live quote for open sessions, the stored settlement for closed ones.
+     */
+    public function bill(ParkingSession $session, ExitService $exits, BillPresenter $bills): JsonResponse
+    {
+        return response()->json(['data' => self::billFor($session, $exits, $bills)]);
+    }
+
+    public static function billFor(ParkingSession $session, ExitService $exits, BillPresenter $bills): array
+    {
+        $quote = $session->status === ParkingSession::ACTIVE
+            ? $exits->buildQuote($session, now())
+            : ($session->charge_breakdown ?? []);
+
+        return $bills->present($session, $quote, $session->receipt?->number);
     }
 
     public function prepay(PrepayRequest $request, ParkingSession $session, ExitService $exits): JsonResponse

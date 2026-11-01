@@ -6,6 +6,7 @@ use App\Models\PackageRate;
 use App\Models\ParkingPackage;
 use App\Models\ParkingSlot;
 use App\Models\ParkingZone;
+use App\Models\PenaltyType;
 use App\Models\VehicleCategory;
 use App\Models\ZoneType;
 use Illuminate\Database\Seeder;
@@ -35,8 +36,19 @@ class ParkingLayoutSeeder extends Seeder
         'safety' => ['car' => [50000, 5000, null], 'van' => [70000, 7000, null], 'motorcycle' => [30000, 3000, null]],
     ];
 
+    /** EXAMPLE penalty catalogue (amounts NOT approved). */
+    private const PENALTIES = [
+        'lost_ticket' => ['Lost parking ticket', 50000],
+        'rule_violation' => ['Parking rule violation', 100000],
+        'unauthorized_parking' => ['Unauthorized parking', 150000],
+    ];
+
     public function run(): void
     {
+        foreach (self::PENALTIES as $code => [$name, $amount]) {
+            PenaltyType::firstOrCreate(['code' => $code], ['name' => $name, 'amount_minor' => $amount, 'description' => 'Example penalty seeded for local development.']);
+        }
+
         $types = ZoneType::pluck('id', 'code');
         $categories = VehicleCategory::pluck('id', 'code');
 

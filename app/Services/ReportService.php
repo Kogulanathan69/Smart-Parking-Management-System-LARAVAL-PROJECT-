@@ -9,6 +9,7 @@ use App\Models\ParkingZone;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\SafetyInspection;
+use App\Models\SessionPenalty;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
@@ -72,8 +73,30 @@ class ReportService
             'by_method' => $byMethod->all(),
             'refunds_minor' => (int) $refunds->whereIn('status', [Refund::APPROVED, Refund::PAID])->sum('amount_minor'),
             'refunds_pending' => $refunds->where('status', Refund::PENDING)->count(),
+            'penalties' => $this->penaltySummary($start, $end),
             'pending_payments' => Payment::where('status', Payment::PENDING)->count(),
             'failed_payments' => Payment::where('status', Payment::FAILED)->whereBetween('created_at', [$start, $end])->count(),
+        ];
+    }
+
+    /**
+     * Penalties applied in the range (by applied_at), split into applied and waived.
+     *
+     * @return array{applied_count: int, applied_minor: int, waived_count: int, waived_minor: int, by_type: list<array{code: string, count: int, amount_minor: int}>}
+     */
+    public function penaltySummary(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $rows = SessionPenalty::with('type')->whereBetween('applied_at', [$start, $end])->get();
+        $applied = $rows->where('status', SessionPenalty::APPLIED);
+        $waived = $rows->where('status', SessionPenalty::WAIVED);
+
+        return [
+            'applied_count' => $applied->count(),
+            'applied_minor' => (int) $applied->sum('amount_minor'),
+            'waived_count' => $waived->count(),
+            'waived_minor' => (int) $waived->sum('amount_minor'),
+            'by_type' => $applied->groupBy(fn ($p) => $p->type->code)
+                ->map(fn ($g, $code) => ['code' => $code, 'count' => $g->count(), 'amount_minor' => (int) $g->sum('amount_minor')])->values()->all(),
         ];
     }
 

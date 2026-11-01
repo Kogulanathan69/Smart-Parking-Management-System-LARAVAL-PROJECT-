@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api\Customer;
 
+use App\Http\Controllers\Api\Staff\SessionController;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ParkingSessionResource;
 use App\Http\Resources\ReceiptResource;
 use App\Models\CustomerCredit;
 use App\Models\ParkingSession;
 use App\Models\Receipt;
+use App\Services\BillPresenter;
+use App\Services\ExitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -30,6 +33,13 @@ class ParkingHistoryController extends Controller
         $this->authorize('view', $session);
 
         return new ParkingSessionResource($session->load(['vehicle.category', 'zone', 'slot', 'package', 'receipt']));
+    }
+
+    public function bill(ParkingSession $session, ExitService $exits, BillPresenter $bills): JsonResponse
+    {
+        $this->authorize('view', $session);
+
+        return response()->json(['data' => SessionController::billFor($session, $exits, $bills)]);
     }
 
     public function receipts(Request $request): AnonymousResourceCollection
