@@ -120,7 +120,7 @@ it('gives staff a filtered, paginated vehicle register and admins the ability to
 
 it('lets admins manage vehicle categories with validation', function () {
     $this->actingAs($this->admin)->postJson('/api/v1/admin/vehicle-categories', ['code' => 'tuk', 'name' => 'Three-wheeler', 'requires_plate' => true])
-        ->assertCreated()->assertJsonPath('data.is_motorized', true);
+        ->assertCreated()->assertJsonPath('data.is_motorized', true)->assertJsonPath('data.is_active', true)->assertJsonPath('data.requires_plate', true);
     $this->actingAs($this->admin)->postJson('/api/v1/admin/vehicle-categories', ['code' => 'car', 'name' => 'Duplicate'])->assertUnprocessable();
 
     $van = category('van');

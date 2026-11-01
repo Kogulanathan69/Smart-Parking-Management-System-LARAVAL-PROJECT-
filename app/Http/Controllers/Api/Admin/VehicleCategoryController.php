@@ -29,7 +29,7 @@ class VehicleCategoryController extends Controller
 
     public function store(VehicleCategoryRequest $request): JsonResponse
     {
-        $category = VehicleCategory::create($request->validated() + ['is_motorized' => true]);
+        $category = VehicleCategory::create($request->validated() + ['is_motorized' => true])->refresh();
         $this->audit->log('vehicle_category.created', $category, [], $category->toArray());
 
         return response()->json(['data' => $this->present($category)], 201);
