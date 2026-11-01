@@ -87,6 +87,25 @@ it('is idempotent: repeating a settle request never charges twice', function () 
     expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1);
 });
 
+it('does not reopen the gate or notify again when an exit payment is retried', function () {
+    $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000033']);
+    [$session, $payload] = recordEntry($this->staff, ['customer_phone' => '0770000033']);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('status', 'completed');
+    expect($customer->notifications()->count())->toBe(1);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('replayed', true)
+        ->assertJsonPath('gate', null);
+
+    expect($customer->notifications()->count())->toBe(1)
+        ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $session->id)->count())->toBe(1);
+});
+
 it('rejects reuse of an exit idempotency key for another parking session', function () {
     [$firstSession, $firstPayload] = recordEntry($this->staff);
     [$secondSession, $secondPayload] = recordEntry($this->staff);
