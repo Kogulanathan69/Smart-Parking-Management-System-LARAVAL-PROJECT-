@@ -269,6 +269,8 @@ it('replays an existing prepayment after session closure without creating anothe
 });
 
 it('turns unused prepaid weekly time into customer credit on early exit', function () {
+    // Freeze the clock: a single elapsed second would otherwise start a third billing day.
+    $this->freezeSecond();
     $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000002']);
     [$session, $payload] = recordEntry($this->staff, [
         'parking_zone_id' => zone('C')->id, 'parking_package_id' => package('weekly')->id, 'customer_phone' => '0770000002',

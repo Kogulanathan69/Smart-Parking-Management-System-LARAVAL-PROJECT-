@@ -16,13 +16,13 @@ class ReferenceDataSeeder extends Seeder
     public function run(): void
     {
         foreach ([
-            ['code' => VehicleCategory::BICYCLE, 'name' => 'Bicycle', 'requires_plate' => false, 'sort_order' => 1],
+            ['code' => VehicleCategory::BICYCLE, 'name' => 'Bicycle', 'requires_plate' => false, 'is_motorized' => false, 'sort_order' => 1],
             ['code' => VehicleCategory::MOTORCYCLE, 'name' => 'Motorcycle', 'requires_plate' => true, 'sort_order' => 2],
             ['code' => VehicleCategory::CAR, 'name' => 'Car', 'requires_plate' => true, 'sort_order' => 3],
             ['code' => VehicleCategory::VAN, 'name' => 'Van', 'requires_plate' => true, 'sort_order' => 4],
             ['code' => VehicleCategory::HEAVY, 'name' => 'Lorry / Heavy vehicle', 'requires_plate' => true, 'sort_order' => 5],
         ] as $row) {
-            VehicleCategory::updateOrCreate(['code' => $row['code']], $row);
+            VehicleCategory::firstOrCreate(['code' => $row['code']], $row + ['is_motorized' => true]);
         }
 
         foreach ([

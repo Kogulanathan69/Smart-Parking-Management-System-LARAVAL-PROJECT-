@@ -23,6 +23,7 @@ class VehicleFactory extends Factory
             'make' => fake()->randomElement(['Toyota', 'Honda', 'Suzuki', 'Nissan']),
             'model' => fake()->word(),
             'color' => fake()->safeColorName(),
+            'fuel_type' => fake()->randomElement(['petrol', 'diesel', 'hybrid', 'electric']),
         ];
     }
 }
