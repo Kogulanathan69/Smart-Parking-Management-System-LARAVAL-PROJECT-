@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FuelType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +22,7 @@ class ParkingSession extends Model
     public const CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'uuid', 'reference', 'vehicle_id', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id',
+        'uuid', 'reference', 'vehicle_id', 'vehicle_category_id', 'fuel_type', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id',
         'parking_package_id', 'package_rate_id', 'safety_rate_id', 'has_safety', 'status',
         'entry_at', 'package_ends_at', 'exit_at', 'entry_staff_id', 'exit_staff_id',
         'pricing_snapshot', 'charge_breakdown', 'total_charge_minor',
@@ -32,6 +33,7 @@ class ParkingSession extends Model
     {
         return [
             'has_safety' => 'boolean',
+            'fuel_type' => FuelType::class,
             'entry_at' => 'datetime',
             'package_ends_at' => 'datetime',
             'exit_at' => 'datetime',
@@ -54,6 +56,29 @@ class ParkingSession extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class)->withTrashed();
+    }
+
+    /**
+     * Vehicle category recorded at entry (historical; used for billing and filters).
+     */
+    public function vehicleCategory(): BelongsTo
+    {
+        return $this->belongsTo(VehicleCategory::class);
+    }
+
+    public function penalties(): HasMany
+    {
+        return $this->hasMany(SessionPenalty::class);
+    }
+
+    public function appliedPenalties(): HasMany
+    {
+        return $this->penalties()->where('status', SessionPenalty::APPLIED);
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(SessionReminder::class);
     }
 
     public function customer(): BelongsTo
