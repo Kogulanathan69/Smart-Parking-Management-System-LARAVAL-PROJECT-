@@ -183,7 +183,14 @@ class ExitService
         return DB::transaction(function () use ($session, $staff, $input) {
             $locked = ParkingSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
             if ($previous = $this->payments->findByIdempotencyKey($input['idempotency_key'])) {
-                return $this->replayPrepayment($previous, $locked, $input);
+                if ($previous->parking_session_id !== $locked->id) {
+                    throw new ParkingException('Idempotency key already used for another session.', 'idempotency_conflict', 409);
+                }
+                $method = PaymentMethod::where('code', $input['payment_method'])->first();
+                if (! $method || $previous->payment_method_id !== $method->id || $previous->amount_minor !== (int) $input['amount_minor']) {
+                    throw new ParkingException('Idempotency key already used with different payment details.', 'idempotency_conflict', 409);
+                }
+                return $previous;
             }
             if ($locked->status !== ParkingSession::ACTIVE) {
                 throw new ParkingException('Session is not active.', 'invalid_session_state', 409);
