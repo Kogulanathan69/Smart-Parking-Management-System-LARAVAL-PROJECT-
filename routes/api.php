@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\PackageController;
 use App\Http\Controllers\Api\Admin\SettingController;
 use App\Http\Controllers\Api\Admin\ShiftController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\Admin\VehicleCategoryController;
 use App\Http\Controllers\Api\Admin\ZoneController;
 use App\Http\Controllers\Api\Customer\ComplaintController;
 use App\Http\Controllers\Api\Customer\NotificationController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\Staff\EntryController;
 use App\Http\Controllers\Api\Staff\ExitController;
 use App\Http\Controllers\Api\Staff\SafetyController;
 use App\Http\Controllers\Api\Staff\SessionController;
+use App\Http\Controllers\Api\Staff\VehicleController as StaffVehicleController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -57,6 +59,8 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
     /* ---------------- Staff operations (Admin & Super Admin may also operate) ---------------- */
     Route::middleware('role:staff,admin,super_admin')->prefix('staff')->name('staff.')->group(function () {
         Route::get('vehicles/lookup', [EntryController::class, 'lookupVehicle'])->name('vehicles.lookup');
+        Route::get('vehicles', [StaffVehicleController::class, 'index'])->name('vehicles.index');
+        Route::get('vehicles/{vehicle}', [StaffVehicleController::class, 'show'])->whereNumber('vehicle')->name('vehicles.show');
         Route::get('availability', [EntryController::class, 'availability'])->name('availability');
         Route::post('entries', [EntryController::class, 'store'])->middleware('throttle:gate')->name('entries.store');
 
@@ -87,6 +91,11 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
 
     /* ---------------- Admin & Super Admin management ---------------- */
     Route::middleware('role:admin,super_admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('vehicle-categories', [VehicleCategoryController::class, 'index'])->name('vehicle-categories.index');
+        Route::post('vehicle-categories', [VehicleCategoryController::class, 'store'])->name('vehicle-categories.store');
+        Route::patch('vehicle-categories/{category}', [VehicleCategoryController::class, 'update'])->name('vehicle-categories.update');
+        Route::patch('vehicles/{vehicle}', [StaffVehicleController::class, 'update'])->name('vehicles.update');
+
         Route::apiResource('zones', ZoneController::class)->except('destroy');
         Route::put('zones/{zone}/capacity', [ZoneController::class, 'setCapacity'])->name('zones.capacity');
         Route::get('zones/{zone}/slots', [ZoneController::class, 'slots'])->name('zones.slots');

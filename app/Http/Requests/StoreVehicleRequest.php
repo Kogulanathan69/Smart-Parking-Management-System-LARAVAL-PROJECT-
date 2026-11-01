@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\FuelType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreVehicleRequest extends FormRequest
 {
@@ -21,7 +23,8 @@ class StoreVehicleRequest extends FormRequest
     {
         return [
             'plate_number' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9 \-]+$/'],
-            'vehicle_category_id' => ['required', 'integer', 'exists:vehicle_categories,id'],
+            'vehicle_category_id' => ['required', 'integer', Rule::exists('vehicle_categories', 'id')->where('is_active', true)],
+            'fuel_type' => ['nullable', Rule::enum(FuelType::class)],
             'make' => ['nullable', 'string', 'max:50'],
             'model' => ['nullable', 'string', 'max:50'],
             'color' => ['nullable', 'string', 'max:30'],
