@@ -28,6 +28,8 @@ function settle(string $payload, array $extra = []): TestResponse
 }
 
 it('previews the full calculation before payment', function () {
+    // Freeze the clock before entry so the 25-hour duration is exact.
+    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-01 08:00:00', 'Asia/Colombo'));
     [, $payload] = recordEntry($this->staff);
     $this->travel(25)->hours();
 
