@@ -251,6 +251,23 @@ it('rejects prepayment retries that change amount or payment method', function (
         ->and(Payment::where('parking_session_id', $session->id)->value('amount_minor'))->toBe(900000);
 });
 
+it('replays an existing prepayment after session closure without creating another charge', function () {
+    [$session, $payload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $url = "/api/v1/staff/sessions/{$session->uuid}/payments";
+    $input = ['idempotency_key' => $key, 'payment_method' => 'cash', 'amount_minor' => 150000];
+    $this->actingAs($this->staff);
+
+    $this->postJson($url, $input)->assertCreated();
+    settle($payload, ['payment_method' => null])->assertOk();
+    $this->postJson($url, $input)->assertSuccessful();
+    $this->postJson($url, array_merge($input, ['amount_minor' => 100000]))
+        ->assertStatus(409)->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and($session->refresh()->status)->toBe(ParkingSession::COMPLETED);
+});
+
 it('turns unused prepaid weekly time into customer credit on early exit', function () {
     $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000002']);
     [$session, $payload] = recordEntry($this->staff, [
