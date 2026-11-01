@@ -172,3 +172,45 @@ Rollback and re-apply were verified on MySQL 8.0 and SQLite. A run against legac
 4. **Penalty amounts and rules.** The seeded amounts are examples. Should any penalty ever be applied automatically, for example after X hours of overtime? Currently none are.
 5. **Reminder thresholds and channels.** The default is 60 minutes before expiry plus a notice at expiry. SMS/WhatsApp providers are still to be chosen.
 6. **Tax on penalties.** Currently not taxed; tax is 0 overall until approved.
+
+## 9. Weekly & monthly guaranteed parking
+
+**Schema.** `parking_reservations` (existing migration `2026_11_01_074443`) plus the new forward-only migration `2026_11_03_000001_add_guaranteed_parking_support`:
+
+* `parking_packages.guarantees_slot`, backfilled ON for fixed packages of 7 days or more
+* `parking_sessions.parking_reservation_id`
+* `reservation_periods`: one row per paid period, recording which session's bill carries it. This is how the base price is charged once per period and never per visit.
+
+**Slot transitions.** Every transition uses a compare-and-set update inside a transaction:
+
+| Event | Slot |
+|---|---|
+| Normal entry / exit | available → occupied → available |
+| Guaranteed first entry | available → occupied |
+| Temporary exit (after physical departure) | occupied → reserved |
+| Re-entry | reserved → occupied |
+| Expiry or cancellation while vacant | reserved → available |
+| Expiry or cancellation while inside | stays occupied; released at departure |
+
+Reserved slots held by an active reservation can't be changed by admins (`slot_reserved_for_customer`). Capacity can't be reduced below reserved plus occupied slots. A vehicle's category can't change while it holds a reservation.
+
+**Concurrency.** Active ownership is guaranteed by the unique `active_vehicle_key` / `active_slot_key` (cleared when a reservation ends), together with the existing `open_*_key` indexes and the vehicle row lock.
+
+* Reservation rows are locked by primary key only after they're known to exist. This avoids MySQL gap-lock deadlocks, which the race tests initially exposed.
+* Verified with real parallel processes on MySQL 8.0, three times in a row: 8 first entries for 3 slots gave exactly 3 reservations, 5 parallel re-entries gave exactly 1, and expiry racing re-entry at the expiry instant never left a slot stranded.
+
+**Zone layout.** Physical zones currently follow package types (Zone C weekly, Zone D monthly). No schema change is needed to lay zones out by vehicle category instead:
+
+* Create category zones with the existing `zone_types`, attach the allowed vehicle categories, and allow the packages for those zone types through `package_zone_type`.
+* Guaranteed parking already respects zone categories, slot categories and capacity.
+* Nothing was re-seeded or restructured.
+
+**Policy decisions needing approval** (current safe behaviour in brackets):
+
+1. Renewal price and timing. [Current rate at renewal; starts at the current expiry; billed on the current or next visit.]
+2. Refunds on cancellation. [Never automatic; an admin enters an amount, capped at the paid package amount, which needs approval.]
+3. Re-entry with a different package or zone. [Refused with a clear error; staff must use the reservation's package and zone.]
+4. Overtime rate for re-entry visits after expiry. [The rate bought with the reservation, measured from the current expiry.]
+5. Safety add-on on reservation visits. [Charged per visit, per started day, as today.]
+6. Expiry reminders after a renewal. [Reminders reset only for the visit in progress; there are no reminders while the vehicle is away. Customers can see the expiry in `/customer/reservations`.]
+7. Walk-in reservations without a customer account. [Allowed; ownership is by vehicle. They don't appear in any customer portal.]

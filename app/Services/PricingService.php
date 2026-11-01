@@ -110,7 +110,14 @@ class PricingService
      */
     public function quote(ParkingSession $session, CarbonInterface $exitAt): array
     {
-        return $this->calculate($session->pricing_snapshot, $session->entry_at, $exitAt, $session->has_safety);
+        $snapshot = $session->pricing_snapshot;
+        if (! empty($snapshot['reservation']) && $session->package_ends_at) {
+            // Guaranteed parking: overtime is measured against the reservation's CURRENT expiry
+            // (kept on the session and extended on renewal), not against this visit's entry time.
+            $snapshot['reservation']['ends_at'] = $session->package_ends_at->toIso8601String();
+        }
+
+        return $this->calculate($snapshot, $session->entry_at, $exitAt, $session->has_safety);
     }
 
     public function calculate(array $snapshot, CarbonInterface $entryAt, CarbonInterface $exitAt, bool $hasSafety): array
@@ -125,7 +132,10 @@ class PricingService
         $policy = $snapshot['policy'];
         $block = max(1, (int) $policy['billing_block_minutes']);
         $minutes = $this->minutesBetween($entry, $exit);
-        $endsAt = $this->packageEndsAt($snapshot, $entry);
+        $reservation = $snapshot['reservation'] ?? null;
+        $endsAt = $reservation && ! empty($reservation['ends_at'])
+            ? CarbonImmutable::parse($reservation['ends_at'])->utc()
+            : $this->packageEndsAt($snapshot, $entry);
         $lines = [];
         $overtimeMinutes = 0;
         $unused = 0;
@@ -137,7 +147,17 @@ class PricingService
             $price = (int) $rate['price_minor'];
             $grace = (int) $rate['grace_minutes'];
 
-            if ($exit <= $endsAt) {
+            if ($reservation) {
+                // The package price is billed once per reservation period (see ExitService/ReservationService),
+                // never per visit, and a temporary exit never earns an early-exit credit.
+                $graceEnds = $endsAt->addMinutes($grace);
+                if ($exit > $graceEnds) {
+                    $from = $policy['overtime_starts_from'] === 'grace_end' ? $graceEnds : $endsAt;
+                    $overtimeMinutes = $this->minutesBetween($from, $exit);
+                    $amount = $this->blockCharge($overtimeMinutes, $block, (int) $rate['overtime_hourly_minor'], $rate['overtime_daily_cap_minor']);
+                    $lines[] = ['code' => 'overtime', 'label' => 'Overtime after reservation expiry', 'amount_minor' => $amount, 'detail' => ['minutes' => $overtimeMinutes, 'hourly_minor' => (int) $rate['overtime_hourly_minor'], 'daily_cap_minor' => $rate['overtime_daily_cap_minor']]];
+                }
+            } elseif ($exit <= $endsAt) {
                 $charge = $price;
                 $durationDays = (int) ceil(((int) ($snapshot['package']['duration_minutes'] ?? 0)) / 1440);
                 if ($snapshot['package']['allows_early_exit_credit'] && $policy['early_exit_method'] === 'prorate_daily' && $durationDays > 1) {

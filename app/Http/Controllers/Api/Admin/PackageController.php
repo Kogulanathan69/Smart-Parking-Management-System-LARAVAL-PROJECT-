@@ -44,6 +44,10 @@ class PackageController extends Controller
      */
     public function update(UpdatePackageRequest $request, ParkingPackage $package): PackageResource
     {
+        // Only fixed/night packages have a validity period that can hold a slot. Turning the flag off
+        // affects new purchases only; existing reservations keep their slot until they end.
+        abort_if($request->boolean('guarantees_slot') && ! in_array($package->billing_mode, [ParkingPackage::MODE_FIXED, ParkingPackage::MODE_NIGHT], true),
+            422, 'Only fixed-duration or night packages can guarantee a slot.');
         $original = $package->getAttributes();
         $package->update($request->safe()->except('zone_type_ids'));
         if ($request->has('zone_type_ids')) {

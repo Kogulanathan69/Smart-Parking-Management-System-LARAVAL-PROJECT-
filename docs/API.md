@@ -492,3 +492,66 @@ Roles: admin, super_admin, auditor.
 To show the vehicles for a selected day, call `/reports/sessions?date=YYYY-MM-DD&date_field=entry` (entries), `date_field=exit` (exits) or `date_field=present`. Daily revenue is counted by payment time, and penalties by the time they were applied.
 
 `GET /reports/financial` now also returns `penalties` (`applied_count`, `applied_minor`, `waived_count`, `waived_minor`, `by_type`).
+
+---
+
+## Weekly & monthly guaranteed parking (reservations)
+
+Packages with `guarantees_slot: true` hold a **dedicated slot for their whole validity**. The seed data sets this for weekly (7 days) and monthly (30 days); admins can change it with `PATCH /admin/packages/{id}`. Only fixed and night packages can have it. Hourly and add-on packages are refused.
+
+The entry and exit endpoints are unchanged; the API decides what to do from the vehicle and the package:
+
+| Situation at `POST /staff/entries` | What happens |
+|---|---|
+| Guaranteed package, no reservation | **First entry.** A free slot is allocated, the reservation is created (expiry = entry + package duration), and the first visit's bill carries the package price |
+| Vehicle has a valid reservation | **Re-entry.** The same slot is reused, the expiry stays the same, and the package price is *not* charged again. The request must use the reservation's package and zone, otherwise you get `409 reservation_package_mismatch` or `reservation_zone_mismatch` (the `context` shows the reservation) |
+| Reservation has expired | The old reservation ends and the entry is treated as a new purchase. The previous slot is tried first |
+| Non-guaranteed package | Unchanged |
+
+**Exit** (settle, or `confirm-left` in gate mode):
+
+* While the reservation is valid, the slot goes from `occupied` to `reserved` once the vehicle has left.
+* Re-entry visits are billed only for overtime past the reservation's expiry, for the safety add-on, and for any penalties.
+* A temporary exit never creates an early-exit credit or refund.
+
+**Endpoints:**
+
+| Method | Path | Roles |
+|---|---|---|
+| GET | `/staff/reservations?status=&plate=&zone_id=&expiring_within=&per_page=` | staff, admin, super_admin |
+| GET | `/staff/reservations/{id}` (plus `visits`) | staff, admin, super_admin |
+| POST | `/staff/reservations/{id}/renew` | staff, admin, super_admin |
+| POST | `/admin/reservations/{id}/cancel`, body `{reason, refund_minor?}` | admin, super_admin |
+| GET | `/customer/reservations`, `/customer/reservations/{id}` | customer (own only) |
+
+`GET /staff/vehicles/lookup?plate=` now returns `active_reservation` (`slot`, `zone`, `package`, `expires_at`, `is_valid`).
+
+**Reservation resource:**
+
+```json
+{"id": 1, "status": "active", "is_valid": true, "vehicle": {"id": 1, "identifier": "WPCAR0001"},
+ "zone": {"id": 4, "code": "D"}, "slot": {"id": 70, "code": "D-CAR-001", "status": "reserved"},
+ "package": {"id": 5, "code": "monthly", "name": "Monthly (30 days)"},
+ "starts_at": "2026-11-05T02:30:00+00:00", "expires_at": "2026-12-05T02:30:00+00:00", "expires_at_local": "2026-12-05 08:00",
+ "remaining_minutes": 43020, "vehicle_on_site": false, "current_session_uuid": null,
+ "periods": [{"sequence": 1, "kind": "initial", "price_minor": 3000000, "price": "30,000.00", "status": "billed", "paid": true}]}
+```
+
+**Renewal** adds one package period starting at the current expiry, at the current rate. The slot is kept.
+
+* The renewal price is billed on the visit in progress, or on the next visit if the vehicle is away. The response shows `billed_on`.
+* Only one unbilled renewal can be pending at a time (`409 renewal_pending`).
+* Expired reservations can't be renewed (`409 reservation_not_renewable`); the next entry starts a new purchase instead.
+
+**Cancellation** (admin only):
+
+* Periods that haven't started yet are voided.
+* A vacant slot is released straight away. If the vehicle is inside, the slot stays occupied until it leaves.
+* There's **no automatic refund**. An optional `refund_minor`, capped at the paid package amount, creates a *pending* refund that goes through the existing approval endpoint.
+
+**Expiry** runs as `php artisan parking:expire-reservations` every 5 minutes. It is idempotent, and `--at=` sets the evaluation time.
+
+* Vacant `reserved` slots are released.
+* Occupied slots are never released. The vehicle is billed overtime from the expiry and the slot is released when it leaves.
+
+**New error codes:** `reservation_package_mismatch`, `reservation_zone_mismatch`, `reservation_category_mismatch`, `reserved_slot_unavailable`, `reservation_expired`, `reservation_not_renewable`, `renewal_pending`, `reservation_not_active`, `refund_exceeds_paid`, `package_not_reservable`, `package_inactive`, `slot_reserved_for_customer`, `vehicle_has_reservation`.

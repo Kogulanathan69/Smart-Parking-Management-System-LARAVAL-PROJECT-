@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ParkingException;
+use App\Models\ParkingReservation;
 use App\Models\ParkingSlot;
 use App\Models\ParkingZone;
 use App\Models\VehicleCategory;
@@ -76,6 +77,9 @@ class ZoneService
 
         return DB::transaction(function () use ($slot, $status, $notes) {
             $locked = ParkingSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            if (ParkingReservation::where('active_slot_key', $locked->id)->exists()) {
+                throw new ParkingException('This slot is held by an active guaranteed-parking reservation.', 'slot_reserved_for_customer', 409);
+            }
             if ($locked->status === ParkingSlot::OCCUPIED || $locked->decommissioned_at) {
                 throw new ParkingException('Occupied or decommissioned slots cannot be changed manually.', 'slot_locked', 409);
             }

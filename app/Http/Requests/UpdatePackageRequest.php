@@ -22,6 +22,7 @@ class UpdatePackageRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:100'],
             'allows_early_exit_credit' => ['sometimes', 'boolean'],
+            'guarantees_slot' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'description' => ['nullable', 'string', 'max:1000'],
             'zone_type_ids' => ['sometimes', 'array'],

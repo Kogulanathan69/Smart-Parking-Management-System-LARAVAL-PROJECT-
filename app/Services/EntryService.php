@@ -7,6 +7,7 @@ use App\Exceptions\ParkingException;
 use App\Models\PackageRate;
 use App\Models\ParkingPackage;
 use App\Models\ParkingSession;
+use App\Models\ParkingSlot;
 use App\Models\ParkingZone;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -27,6 +28,7 @@ class EntryService
         private SafetyService $safety,
         private PlateRecognizer $plateRecognizer,
         private AuditLogger $audit,
+        private ReservationService $reservations,
     ) {}
 
     /**
@@ -39,7 +41,8 @@ class EntryService
     {
         $category = VehicleCategory::where('is_active', true)->findOrFail($data['vehicle_category_id']);
         $zone = ParkingZone::with('zoneType')->where('is_active', true)->findOrFail($data['parking_zone_id']);
-        $package = ParkingPackage::where('is_active', true)->findOrFail($data['parking_package_id']);
+        // Inactive packages are still accepted for re-entry on an existing reservation (checked below).
+        $package = ParkingPackage::findOrFail($data['parking_package_id']);
         $plate = $this->plateRecognizer->recognize(null, $data['plate_number'] ?? null)['plate'];
 
         if ($package->isAddon()) {
@@ -53,10 +56,8 @@ class EntryService
         }
 
         $now = now();
+        // A missing rate only blocks NEW purchases; re-entry on a reservation uses the rate bought.
         $rate = $package->rateFor($category->id, $now);
-        if (! $rate) {
-            throw new ParkingException('No price is configured for this package and vehicle type.', 'rate_not_configured');
-        }
 
         $hasSafety = (bool) $zone->zoneType->is_safety;
         $safetyRate = null;
@@ -75,7 +76,7 @@ class EntryService
                 return $this->persistEntry($staff, $data, $category, $zone, $package, $rate, $safetyRate, $hasSafety, $customer, $plate, $now);
             } catch (UniqueConstraintViolationException $e) {
                 $message = $e->getMessage();
-                if (str_contains($message, 'open_vehicle_key')) {
+                if (str_contains($message, 'open_vehicle_key') || str_contains($message, 'active_vehicle_key')) {
                     throw ParkingException::duplicateActiveEntry();
                 }
                 // Another gate registered the same new vehicle at the same moment: retry once and reuse it.
@@ -87,7 +88,7 @@ class EntryService
         }
     }
 
-    private function persistEntry(User $staff, array $data, VehicleCategory $category, ParkingZone $zone, ParkingPackage $package, PackageRate $rate, ?PackageRate $safetyRate, bool $hasSafety, ?User $customer, ?string $plate, CarbonInterface $now): array
+    private function persistEntry(User $staff, array $data, VehicleCategory $category, ParkingZone $zone, ParkingPackage $package, ?PackageRate $rate, ?PackageRate $safetyRate, bool $hasSafety, ?User $customer, ?string $plate, CarbonInterface $now): array
     {
 
         return DB::transaction(function () use ($staff, $data, $category, $zone, $package, $rate, $safetyRate, $hasSafety, $customer, $plate, $now) {
@@ -102,9 +103,44 @@ class EntryService
                 $customer = User::whereKey($vehicle->owner_id)->where('role', User::ROLE_CUSTOMER)->first();
             }
 
-            $slot = $this->allocator->allocate($zone, $category->id, $data['parking_slot_id'] ?? null);
-            $snapshot = $this->pricing->snapshot($package, $rate, $safetyRate);
+            // ---- Guaranteed parking: re-entry, expired reservation, or first purchase ----
+            $reservation = $this->reservations->activeFor($vehicle->id, lock: true);
+            $previousSlotId = null;
+            if ($reservation && ! $reservation->isActiveAt($now)) {
+                // Expired but not yet processed by the scheduler: end it now (releases the vacant slot).
+                $previousSlotId = $reservation->parking_slot_id;
+                $this->reservations->expire($reservation, $now);
+                $reservation = null;
+            }
+            $isReentry = $reservation !== null;
+            $isNewReservation = ! $isReentry && $package->guaranteesSlot();
+
+            if ($isReentry) {
+                $slot = $this->reservations->claimForReentry($reservation, $zone, $package, $category, $now);
+                $rate = $reservation->rate;
+                $snapshot = $this->pricing->snapshot($package, $rate, $safetyRate);
+                // Pricing policy and package terms stay as bought; only the per-visit safety rate is current.
+                $snapshot['package'] = $reservation->pricing_snapshot['package'] ?? $snapshot['package'];
+                $snapshot['policy'] = $reservation->pricing_snapshot['policy'] ?? $snapshot['policy'];
+                $customer ??= $reservation->customer;
+            } else {
+                if (! $package->is_active) {
+                    throw new ParkingException('This package is not currently offered.', 'package_inactive');
+                }
+                if (! $rate) {
+                    throw new ParkingException('No price is configured for this package and vehicle type.', 'rate_not_configured');
+                }
+                $slot = $this->allocateSlot($zone, $category->id, $data['parking_slot_id'] ?? null, $isNewReservation ? $previousSlotId : null);
+                $snapshot = $this->pricing->snapshot($package, $rate, $safetyRate);
+            }
             $snapshot['vehicle'] = ['category' => $category->code, 'fuel_type' => $vehicle->fuel_type?->value];
+
+            if ($isNewReservation) {
+                $reservation = $this->reservations->createForEntry($vehicle, $customer, $zone, $slot, $package, $rate, $snapshot, $now);
+            }
+            if ($reservation) {
+                $snapshot['reservation'] = ['id' => $reservation->id];
+            }
 
             $session = ParkingSession::create([
                 'uuid' => (string) Str::uuid(),
@@ -117,13 +153,14 @@ class EntryService
                 'customer_phone' => $data['customer_phone'] ?? $customer?->phone,
                 'parking_zone_id' => $zone->id,
                 'parking_slot_id' => $slot->id,
+                'parking_reservation_id' => $reservation?->id,
                 'parking_package_id' => $package->id,
                 'package_rate_id' => $rate->id,
                 'safety_rate_id' => $safetyRate?->id,
                 'has_safety' => $hasSafety,
                 'status' => ParkingSession::ACTIVE,
                 'entry_at' => $now,
-                'package_ends_at' => $this->pricing->packageEndsAt($snapshot, $now),
+                'package_ends_at' => $reservation ? $reservation->expires_at : $this->pricing->packageEndsAt($snapshot, $now),
                 'entry_staff_id' => $staff->id,
                 'pricing_snapshot' => $snapshot,
                 'open_vehicle_key' => $vehicle->id,
@@ -131,6 +168,12 @@ class EntryService
                 'entry_source' => $data['entry_source'] ?? 'manual',
                 'notes' => $data['notes'] ?? null,
             ]);
+
+            if ($isNewReservation) {
+                $this->reservations->createInitialPeriod($reservation, $session, $staff);
+            } elseif ($isReentry) {
+                $this->reservations->attachPendingPeriods($reservation, $session);
+            }
 
             [, $payload] = $this->tickets->issue($session);
 
@@ -140,11 +183,28 @@ class EntryService
 
             $this->audit->log('session.entry_recorded', $session, [], [
                 'vehicle' => $vehicle->identifier, 'category' => $category->code, 'fuel_type' => $vehicle->fuel_type?->value, 'slot' => $slot->code, 'package' => $package->code, 'rate_version' => $rate->version,
+                'reservation_id' => $reservation?->id, 'reservation_visit' => $isReentry ? 're-entry' : ($isNewReservation ? 'first' : null),
             ]);
 
             return [$session, $payload];
         }, 3);
 
+    }
+
+    /**
+     * Allocate a free slot; when renewing after expiry, try the customer's previous slot first.
+     */
+    private function allocateSlot(ParkingZone $zone, int $categoryId, ?int $requestedSlotId, ?int $previousSlotId): ParkingSlot
+    {
+        if (! $requestedSlotId && $previousSlotId) {
+            try {
+                return $this->allocator->allocate($zone, $categoryId, $previousSlotId);
+            } catch (ParkingException) {
+                // Previous slot not available in this zone/category: fall back to any free slot.
+            }
+        }
+
+        return $this->allocator->allocate($zone, $categoryId, $requestedSlotId);
     }
 
     private function resolveCustomer(array $data): ?User

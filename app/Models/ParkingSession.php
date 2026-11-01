@@ -23,7 +23,7 @@ class ParkingSession extends Model
     public const CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'uuid', 'reference', 'vehicle_id', 'vehicle_category_id', 'fuel_type', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id',
+        'uuid', 'reference', 'vehicle_id', 'vehicle_category_id', 'fuel_type', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id', 'parking_reservation_id',
         'parking_package_id', 'package_rate_id', 'safety_rate_id', 'has_safety', 'status',
         'entry_at', 'package_ends_at', 'exit_at', 'entry_staff_id', 'exit_staff_id',
         'pricing_snapshot', 'charge_breakdown', 'total_charge_minor',
@@ -65,6 +65,19 @@ class ParkingSession extends Model
     public function vehicleCategory(): BelongsTo
     {
         return $this->belongsTo(VehicleCategory::class);
+    }
+
+    public function reservation(): BelongsTo
+    {
+        return $this->belongsTo(ParkingReservation::class, 'parking_reservation_id');
+    }
+
+    /**
+     * Reservation periods whose package price is carried on this session's bill.
+     */
+    public function billedPeriods(): HasMany
+    {
+        return $this->hasMany(ReservationPeriod::class, 'billed_session_id')->where('status', ReservationPeriod::BILLED)->orderBy('sequence');
     }
 
     public function penalties(): HasMany

@@ -59,6 +59,42 @@ class SlotAllocator
             ->update(['status' => ParkingSlot::OCCUPIED, 'lock_version' => DB::raw('lock_version + 1'), 'updated_at' => now()]) === 1;
     }
 
+    /**
+     * Guaranteed re-entry: the owner's reserved slot becomes occupied again (compare-and-set).
+     */
+    public function claimReserved(int $slotId): bool
+    {
+        return ParkingSlot::whereKey($slotId)
+            ->where('status', ParkingSlot::RESERVED)
+            ->whereNull('decommissioned_at')
+            ->update(['status' => ParkingSlot::OCCUPIED, 'lock_version' => DB::raw('lock_version + 1'), 'updated_at' => now()]) === 1;
+    }
+
+    /**
+     * Guaranteed temporary exit: the vehicle has left but the slot stays held for its owner.
+     */
+    public function releaseToReserved(int $slotId): void
+    {
+        ParkingSlot::whereKey($slotId)
+            ->where('status', ParkingSlot::OCCUPIED)
+            ->update(['status' => ParkingSlot::RESERVED, 'lock_version' => DB::raw('lock_version + 1'), 'updated_at' => now()]);
+    }
+
+    /**
+     * Reservation ended while the slot was vacant: reserved -> available (or unavailable if decommissioned).
+     * Never touches an occupied slot.
+     */
+    public function releaseReserved(int $slotId): void
+    {
+        ParkingSlot::whereKey($slotId)
+            ->where('status', ParkingSlot::RESERVED)
+            ->update([
+                'status' => DB::raw("CASE WHEN decommissioned_at IS NULL THEN 'available' ELSE 'unavailable' END"),
+                'lock_version' => DB::raw('lock_version + 1'),
+                'updated_at' => now(),
+            ]);
+    }
+
     public function release(int $slotId): void
     {
         ParkingSlot::whereKey($slotId)

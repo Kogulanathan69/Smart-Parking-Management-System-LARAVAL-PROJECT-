@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\FuelType;
 use App\Exceptions\ParkingException;
+use App\Models\ParkingReservation;
 use App\Models\ParkingSession;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -115,6 +116,9 @@ class VehicleService
             if (isset($data['vehicle_category_id']) && (int) $data['vehicle_category_id'] !== $locked->vehicle_category_id) {
                 if (ParkingSession::where('open_vehicle_key', $locked->id)->exists()) {
                     throw new ParkingException('The vehicle type cannot be changed while the vehicle is parked.', 'vehicle_in_active_session', 409);
+                }
+                if (ParkingReservation::where('active_vehicle_key', $locked->id)->exists()) {
+                    throw new ParkingException('The vehicle type cannot be changed while it holds a reserved slot.', 'vehicle_has_reservation', 409);
                 }
                 $category = $this->activeCategory((int) $data['vehicle_category_id']);
                 if ($category->requires_plate && $locked->is_reference) {

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('parking:schedule-inspections')->hourly()->withoutOverlapping();
 Schedule::command('parking:send-expiry-reminders')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('parking:expire-reservations')->everyFiveMinutes()->withoutOverlapping();

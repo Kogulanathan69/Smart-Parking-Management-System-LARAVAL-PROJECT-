@@ -29,6 +29,7 @@ class StorePackageRequest extends FormRequest
             'zone_type_ids' => ['nullable', 'array'],
             'zone_type_ids.*' => ['integer', 'exists:zone_types,id'],
             'allows_early_exit_credit' => ['boolean'],
+            'guarantees_slot' => ['boolean', 'declined_if:billing_mode,hourly', 'declined_if:billing_mode,addon'],
             'is_active' => ['boolean'],
             'description' => ['nullable', 'string', 'max:1000'],
         ];

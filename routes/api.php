@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Staff\AttendanceController;
 use App\Http\Controllers\Api\Staff\EntryController;
 use App\Http\Controllers\Api\Staff\ExitController;
 use App\Http\Controllers\Api\Staff\PenaltyController;
+use App\Http\Controllers\Api\Staff\ReservationController;
 use App\Http\Controllers\Api\Staff\SafetyController;
 use App\Http\Controllers\Api\Staff\SessionController;
 use App\Http\Controllers\Api\Staff\VehicleController as StaffVehicleController;
@@ -53,6 +54,8 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
         Route::get('receipts', [ParkingHistoryController::class, 'receipts'])->name('receipts.index');
         Route::get('receipts/{receipt:number}', [ParkingHistoryController::class, 'showReceipt'])->name('receipts.show');
         Route::get('credits', [ParkingHistoryController::class, 'credits'])->name('credits');
+        Route::get('reservations', [ReservationController::class, 'mine'])->name('reservations.index');
+        Route::get('reservations/{reservation}', [ReservationController::class, 'show'])->whereNumber('reservation')->name('reservations.show');
         Route::get('complaints', [ComplaintController::class, 'index'])->name('complaints.index');
         Route::post('complaints', [ComplaintController::class, 'store'])->name('complaints.store');
         Route::get('complaints/{complaint}', [ComplaintController::class, 'show'])->name('complaints.show');
@@ -61,6 +64,9 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
     /* ---------------- Staff operations (Admin & Super Admin may also operate) ---------------- */
     Route::middleware('role:staff,admin,super_admin')->prefix('staff')->name('staff.')->group(function () {
         Route::get('vehicles/lookup', [EntryController::class, 'lookupVehicle'])->name('vehicles.lookup');
+        Route::get('reservations', [ReservationController::class, 'index'])->name('reservations.index');
+        Route::get('reservations/{reservation}', [ReservationController::class, 'show'])->whereNumber('reservation')->name('reservations.show');
+        Route::post('reservations/{reservation}/renew', [ReservationController::class, 'renew'])->whereNumber('reservation')->name('reservations.renew');
         Route::get('vehicles', [StaffVehicleController::class, 'index'])->name('vehicles.index');
         Route::get('vehicles/{vehicle}', [StaffVehicleController::class, 'show'])->whereNumber('vehicle')->name('vehicles.show');
         Route::get('availability', [EntryController::class, 'availability'])->name('availability');
@@ -98,6 +104,8 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
 
     /* ---------------- Admin & Super Admin management ---------------- */
     Route::middleware('role:admin,super_admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::post('reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->whereNumber('reservation')->name('reservations.cancel');
+
         Route::get('penalty-types', [PenaltyController::class, 'types'])->name('penalty-types.index');
         Route::post('penalty-types', [PenaltyController::class, 'storeType'])->name('penalty-types.store');
         Route::patch('penalty-types/{type}', [PenaltyController::class, 'updateType'])->name('penalty-types.update');

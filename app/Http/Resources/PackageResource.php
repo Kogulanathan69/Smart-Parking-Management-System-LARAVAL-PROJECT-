@@ -17,6 +17,7 @@ class PackageResource extends JsonResource
             'duration_minutes' => $this->duration_minutes,
             'zone_types' => $this->whenLoaded('zoneTypes', fn () => $this->zoneTypes->pluck('code')),
             'allows_early_exit_credit' => $this->allows_early_exit_credit,
+            'guarantees_slot' => $this->guaranteesSlot(),
             'is_active' => $this->is_active,
             'description' => $this->description,
             'current_rates' => RateResource::collection($this->whenLoaded('rates')),

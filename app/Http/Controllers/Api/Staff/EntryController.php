@@ -13,6 +13,7 @@ use App\Models\ZoneType;
 use App\Services\EntryService;
 use App\Services\QrTicketService;
 use App\Services\ReportService;
+use App\Services\ReservationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -28,6 +29,9 @@ class EntryController extends Controller
             'vehicle' => $vehicle ? new VehicleResource($vehicle) : null,
             'owner' => $vehicle?->owner ? ['id' => $vehicle->owner->id, 'name' => $vehicle->owner->name, 'phone' => $vehicle->owner->phone] : null,
             'active_session' => $vehicle?->openSession?->reference,
+            'active_reservation' => ($reservation = $vehicle ? app(ReservationService::class)->activeFor($vehicle->id) : null)
+                ? app(ReservationService::class)->summary($reservation) + ['is_valid' => $reservation->isActiveAt()]
+                : null,
         ]);
     }
 

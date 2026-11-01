@@ -78,6 +78,8 @@ class ParkingLayoutSeeder extends Seeder
             $package = ParkingPackage::firstOrCreate(['code' => $code], [
                 'name' => $name, 'billing_mode' => $mode, 'duration_minutes' => $duration,
                 'allows_early_exit_credit' => $earlyExit,
+                // Weekly and monthly hold a dedicated slot for their whole validity (guaranteed parking).
+                'guarantees_slot' => in_array($code, ['weekly', 'monthly'], true),
                 'description' => 'Example package seeded for local development.',
             ]);
             $package->zoneTypes()->syncWithoutDetaching(collect($zoneTypes)->map(fn ($t) => $types[$t])->all());

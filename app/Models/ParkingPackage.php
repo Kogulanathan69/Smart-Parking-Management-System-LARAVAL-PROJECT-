@@ -24,12 +24,12 @@ class ParkingPackage extends Model
 
     protected $fillable = [
         'code', 'name', 'billing_mode', 'duration_minutes',
-        'allows_early_exit_credit', 'is_active', 'description',
+        'allows_early_exit_credit', 'guarantees_slot', 'is_active', 'description',
     ];
 
     protected function casts(): array
     {
-        return ['allows_early_exit_credit' => 'boolean', 'is_active' => 'boolean', 'duration_minutes' => 'integer'];
+        return ['allows_early_exit_credit' => 'boolean', 'guarantees_slot' => 'boolean', 'is_active' => 'boolean', 'duration_minutes' => 'integer'];
     }
 
     public function zoneTypes(): BelongsToMany
@@ -47,6 +47,14 @@ class ParkingPackage extends Model
     public function rates(): HasMany
     {
         return $this->hasMany(PackageRate::class);
+    }
+
+    /**
+     * Weekly/monthly style packages that hold a dedicated slot for the whole validity period.
+     */
+    public function guaranteesSlot(): bool
+    {
+        return (bool) $this->guarantees_slot && in_array($this->billing_mode, [self::MODE_FIXED, self::MODE_NIGHT], true);
     }
 
     public function isAddon(): bool

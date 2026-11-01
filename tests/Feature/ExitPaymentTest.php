@@ -260,7 +260,10 @@ it('replays an existing prepayment after session closure without creating anothe
         ->and($session->refresh()->status)->toBe(ParkingSession::COMPLETED);
 });
 
-it('turns unused prepaid weekly time into customer credit on early exit', function () {
+it('turns unused prepaid weekly time into customer credit on early exit (non-guaranteed weekly)', function () {
+    // Early-exit proration now applies only to fixed packages WITHOUT a guaranteed slot; a guaranteed
+    // weekly/monthly exit is a temporary exit (see GuaranteedParkingTest).
+    package('weekly')->update(['guarantees_slot' => false]);
     // Freeze the clock: a single elapsed second would otherwise start a third billing day.
     $this->freezeSecond();
     $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000002']);
@@ -279,6 +282,7 @@ it('turns unused prepaid weekly time into customer credit on early exit', functi
 });
 
 it('creates a pending refund when refund is chosen above the auto-approve limit', function () {
+    package('weekly')->update(['guarantees_slot' => false]);
     [$session, $payload] = recordEntry($this->staff, ['parking_zone_id' => zone('C')->id, 'parking_package_id' => package('weekly')->id]);
     $this->actingAs($this->staff)->postJson("/api/v1/staff/sessions/{$session->uuid}/payments", [
         'idempotency_key' => (string) Str::uuid(), 'payment_method' => 'cash', 'amount_minor' => 900000,

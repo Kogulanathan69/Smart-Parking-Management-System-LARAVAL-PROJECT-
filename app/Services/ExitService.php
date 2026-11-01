@@ -14,6 +14,7 @@ use App\Models\Refund;
 use App\Models\SafetyInspection;
 use App\Models\User;
 use App\Notifications\ParkingReceiptNotification;
+use App\Support\Money;
 use App\Support\Reference;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class ExitService
         private GateController $gate,
         private AuditLogger $audit,
         private BillPresenter $bills,
+        private ReservationService $reservations,
     ) {}
 
     /**
@@ -209,6 +211,27 @@ class ExitService
     {
         $quote = $this->pricing->quote($session, $exitAt);
 
+        // Guaranteed parking: each reservation period's package price is billed once, on the visit it is attached to.
+        $periodLines = [];
+        foreach ($session->billedPeriods()->get() as $period) {
+            $periodLines[] = [
+                'code' => 'package',
+                'label' => 'Reserved '.($session->pricing_snapshot['package']['code'] ?? 'package').' — period '.$period->sequence.($period->kind === 'renewal' ? ' (renewal)' : ''),
+                'amount_minor' => $period->price_minor,
+                'detail' => ['reservation_period_id' => $period->id, 'starts_at' => $period->starts_at->toIso8601String(), 'ends_at' => $period->ends_at->toIso8601String()],
+            ];
+        }
+        if ($periodLines) {
+            $quote['lines'] = array_merge($periodLines, $quote['lines']);
+            $quote['subtotal_minor'] += (int) array_sum(array_column($periodLines, 'amount_minor'));
+            $bp = (int) ($session->pricing_snapshot['policy']['tax_basis_points'] ?? 0);
+            $quote['tax_minor'] = Money::divRound($quote['subtotal_minor'] * $bp, 10000);
+            $quote['total_minor'] = $quote['subtotal_minor'] + $quote['tax_minor'];
+        }
+        if ($session->parking_reservation_id) {
+            $quote['reservation_id'] = $session->parking_reservation_id;
+        }
+
         // Penalties are separate from overtime and are never taxed (tax rules are pending, BRD §19).
         $penaltyMinor = 0;
         foreach ($session->appliedPenalties()->with('type')->orderBy('id')->get() as $penalty) {
@@ -346,10 +369,20 @@ class ExitService
         return $receipt;
     }
 
+    /**
+     * Runs only once the vehicle has physically left (at settlement, or at gate confirmation in gate mode).
+     * Guaranteed-parking visits keep their slot reserved for the owner; everything else is released.
+     */
     private function closeAndRelease(ParkingSession $session): void
     {
         $slotId = $session->parking_slot_id;
         $session->forceFill(['status' => ParkingSession::COMPLETED, 'open_vehicle_key' => null, 'open_slot_key' => null])->save();
+
+        if ($session->parking_reservation_id) {
+            $this->reservations->handleDeparture($session, now());
+
+            return;
+        }
         $this->allocator->release($slotId);
     }
 
