@@ -114,7 +114,8 @@ class ExitService
             return ['status' => 'completed', 'session' => $session->refresh(), 'quote' => $quote, 'payment' => $payment, 'receipt' => $receipt];
         });
 
-        return $this->afterSettlement($result);
+        // A concurrent retry must never reopen the gate or resend a receipt.
+        return ! empty($result['replayed']) ? $result : $this->afterSettlement($result);
     }
 
     /**
