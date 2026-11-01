@@ -9,9 +9,14 @@
 
 use App\Exceptions\ParkingException;
 use App\Models\ParkingSession;
+use App\Models\PenaltyType;
+use App\Models\SessionPenalty;
 use App\Models\User;
 use App\Services\EntryService;
+use App\Services\PenaltyService;
+use App\Services\ReminderService;
 use App\Services\ZoneService;
+use Carbon\CarbonImmutable;
 use Database\Seeders\ParkingLayoutSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Artisan;
@@ -49,7 +54,8 @@ function race(int $count, callable $work): array
                 exit(0);
             } catch (ParkingException $e) {
                 exit(match ($e->errorCode) {
-                    'no_slot_available' => 10, 'duplicate_active_entry' => 11, default => 2
+                    'no_slot_available' => 10, 'duplicate_active_entry' => 11,
+                    'duplicate_penalty' => 12, default => 2
                 });
             } catch (Throwable $e) {
                 fwrite(STDERR, $e->getMessage()."\n");
@@ -97,4 +103,34 @@ it('never creates two active sessions for one vehicle under concurrent entries',
 
     expect(array_count_values($codes))->toEqual([0 => 1, 11 => 5])
         ->and(ParkingSession::where('status', 'active')->count())->toBe(1);
+});
+
+it('never applies the same penalty twice under concurrent requests', function () {
+    $staff = User::factory()->staff()->create();
+    [$session] = app(EntryService::class)->recordEntry($staff, [
+        'plate_number' => 'PEN-RACE', 'vehicle_category_id' => category('car')->id, 'parking_zone_id' => zone('B')->id, 'parking_package_id' => package('daily')->id,
+    ]);
+    $typeId = PenaltyType::where('code', 'lost_ticket')->value('id');
+
+    $codes = race(6, function () use ($session, $typeId, $staff) {
+        app(PenaltyService::class)->apply(ParkingSession::find($session->id), PenaltyType::find($typeId), 'Lost ticket', User::find($staff->id));
+    });
+
+    expect(array_count_values($codes))->toEqual([0 => 1, 12 => 5])
+        ->and(SessionPenalty::where('parking_session_id', $session->id)->count())->toBe(1);
+});
+
+it('sends an expiry reminder once even when overlapping scheduler runs race', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create(['phone' => '0771230000']);
+    app(EntryService::class)->recordEntry($staff, [
+        'plate_number' => 'REM-RACE', 'vehicle_category_id' => category('car')->id, 'parking_zone_id' => zone('B')->id,
+        'parking_package_id' => package('daily')->id, 'customer_phone' => '0771230000',
+    ]);
+    $at = now()->addMinutes(1430)->toIso8601String();
+
+    $codes = race(4, fn () => app(ReminderService::class)->process(CarbonImmutable::parse($at)));
+
+    expect($codes)->each->toBe(0)
+        ->and(DB::table('notifications')->where('notifiable_id', $customer->id)->count())->toBe(1);
 });

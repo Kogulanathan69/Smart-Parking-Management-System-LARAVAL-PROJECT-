@@ -26,7 +26,8 @@ return new class extends Migration
         Schema::table('vehicles', function (Blueprint $table) {
             if (! Schema::hasColumn('vehicles', 'fuel_type')) {
                 $table->string('fuel_type', 20)->nullable();
-                $table->index(['vehicle_category_id', 'fuel_type'], 'vehicles_category_fuel_idx');
+                // fuel_type first: MySQL must keep the separate FK index on vehicle_category_id.
+                $table->index(['fuel_type', 'vehicle_category_id'], 'vehicles_fuel_category_idx');
             }
         });
 
@@ -55,17 +56,18 @@ return new class extends Migration
     {
         Schema::table('parking_sessions', function (Blueprint $table) {
             if (Schema::hasColumn('parking_sessions', 'vehicle_category_id')) {
+                // MySQL: the foreign key must go before the composite index that backs it.
+                $table->dropForeign(['vehicle_category_id']);
                 $table->dropIndex('sessions_category_entry_idx');
                 $table->dropIndex('sessions_fuel_entry_idx');
                 $table->dropIndex('sessions_status_entry_idx');
                 $table->dropIndex('sessions_status_expiry_idx');
-                $table->dropConstrainedForeignId('vehicle_category_id');
-                $table->dropColumn('fuel_type');
+                $table->dropColumn(['vehicle_category_id', 'fuel_type']);
             }
         });
         Schema::table('vehicles', function (Blueprint $table) {
             if (Schema::hasColumn('vehicles', 'fuel_type')) {
-                $table->dropIndex('vehicles_category_fuel_idx');
+                $table->dropIndex('vehicles_fuel_category_idx');
                 $table->dropColumn('fuel_type');
             }
         });
