@@ -8,6 +8,8 @@ use App\Models\VehicleCategory;
 use Database\Seeders\ParkingLayoutSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /*
@@ -78,4 +80,16 @@ function recordEntry(User $staff, array $overrides = []): array
     $response->assertCreated();
 
     return [ParkingSession::where('uuid', $response->json('data.uuid'))->firstOrFail(), $response->json('ticket.qr_payload')];
+}
+
+/**
+ * Settle an exit through the API (cash by default, fresh idempotency key unless given).
+ */
+function settle(string $payload, array $extra = []): TestResponse
+{
+    return test()->postJson('/api/v1/staff/exits/settle', array_merge([
+        'qr_payload' => $payload,
+        'idempotency_key' => (string) Str::uuid(),
+        'payment_method' => 'cash',
+    ], $extra));
 }

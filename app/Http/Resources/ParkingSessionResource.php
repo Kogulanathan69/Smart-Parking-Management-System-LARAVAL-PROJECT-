@@ -2,12 +2,21 @@
 
 namespace App\Http\Resources;
 
+use App\Services\SettingsService;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ParkingSessionResource extends JsonResource
 {
+    /**
+     * "expiring_soon" uses the largest configured reminder threshold.
+     */
+    public static function warnMinutes(): int
+    {
+        return (int) (collect(app(SettingsService::class)->get('reminders.before_expiry_minutes', [60]))->max() ?? 60);
+    }
+
     public function toArray(Request $request): array
     {
         $internal = (bool) $request->user()?->isInternal();
@@ -20,7 +29,10 @@ class ParkingSessionResource extends JsonResource
             'zone' => $this->whenLoaded('zone', fn () => ['id' => $this->zone->id, 'code' => $this->zone->code, 'name' => $this->zone->name]),
             'slot' => $this->whenLoaded('slot', fn () => ['id' => $this->slot->id, 'code' => $this->slot->code]),
             'package' => $this->whenLoaded('package', fn () => ['id' => $this->package->id, 'code' => $this->package->code, 'name' => $this->package->name]),
+            'vehicle_category' => $this->vehicleCategory?->code,
+            'fuel_type' => $this->fuel_type?->value,
             'has_safety' => $this->has_safety,
+            'time' => $this->timeStatus(null, self::warnMinutes()),
             'entry_at' => $this->entry_at?->toIso8601String(),
             'package_ends_at' => $this->package_ends_at?->toIso8601String(),
             'exit_at' => $this->exit_at?->toIso8601String(),

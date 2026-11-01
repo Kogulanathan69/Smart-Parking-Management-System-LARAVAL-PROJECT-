@@ -32,6 +32,7 @@ class ExitService
         private SettingsService $settings,
         private GateController $gate,
         private AuditLogger $audit,
+        private BillPresenter $bills,
     ) {}
 
     /**
@@ -66,6 +67,7 @@ class ExitService
             if ($ticket->status === QrTicket::VOID) {
                 throw new ParkingException('This QR ticket has been revoked.', 'ticket_already_used', 409);
             }
+            $this->assertReplayDetailsMatch($previous, $input);
 
             return $this->replay($previous);
         }
@@ -83,6 +85,7 @@ class ExitService
                 if ($ticket->status === QrTicket::VOID) {
                     throw new ParkingException('This QR ticket has been revoked.', 'ticket_already_used', 409);
                 }
+                $this->assertReplayDetailsMatch($previous, $input);
 
                 return $this->replay($previous);
             }
@@ -190,6 +193,7 @@ class ExitService
                 if (! $method || $previous->payment_method_id !== $method->id || $previous->amount_minor !== (int) $input['amount_minor']) {
                     throw new ParkingException('Idempotency key already used with different payment details.', 'idempotency_conflict', 409);
                 }
+
                 return $previous;
             }
             if ($locked->status !== ParkingSession::ACTIVE) {
@@ -204,6 +208,23 @@ class ExitService
     public function buildQuote(ParkingSession $session, CarbonInterface $exitAt): array
     {
         $quote = $this->pricing->quote($session, $exitAt);
+
+        // Penalties are separate from overtime and are never taxed (tax rules are pending, BRD §19).
+        $penaltyMinor = 0;
+        foreach ($session->appliedPenalties()->with('type')->orderBy('id')->get() as $penalty) {
+            $quote['lines'][] = [
+                'code' => 'penalty',
+                'label' => 'Penalty: '.$penalty->type->name,
+                'amount_minor' => $penalty->amount_minor,
+                'detail' => ['penalty_id' => $penalty->id, 'penalty_code' => $penalty->type->code, 'reason' => $penalty->reason],
+            ];
+            $penaltyMinor += $penalty->amount_minor;
+        }
+        $quote['parking_total_minor'] = $quote['total_minor'];
+        $quote['penalty_minor'] = $penaltyMinor;
+        $quote['total_minor'] += $penaltyMinor;
+        $quote['charges'] = $this->summariseCharges($quote);
+
         $paid = $session->paidAmountMinor();
         $quote['paid_minor'] = $paid;
         $quote['balance_minor'] = max(0, $quote['total_minor'] - $paid);
@@ -212,6 +233,38 @@ class ExitService
         $quote['requires_exit_inspection'] = $this->exitInspectionMissing($session);
 
         return $quote;
+    }
+
+    /**
+     * Totals per charge type for the final bill.
+     *
+     * @return array{base_minor: int, overtime_minor: int, safety_minor: int, penalty_minor: int, tax_minor: int, total_minor: int}
+     */
+    private function summariseCharges(array $quote): array
+    {
+        $sum = fn (array $codes) => (int) collect($quote['lines'])->whereIn('code', $codes)->sum('amount_minor');
+
+        return [
+            'base_minor' => $sum(['parking', 'package']),
+            'overtime_minor' => $sum(['overtime']),
+            'safety_minor' => $sum(['safety', 'safety_overtime']),
+            'penalty_minor' => $sum(['penalty']),
+            'tax_minor' => (int) $quote['tax_minor'],
+            'total_minor' => (int) $quote['total_minor'],
+        ];
+    }
+
+    /**
+     * Retrying an idempotency key with a different payment method is a different request, not a retry.
+     */
+    private function assertReplayDetailsMatch(Payment $previous, array $input): void
+    {
+        if (! empty($input['payment_method'])) {
+            $methodId = PaymentMethod::where('code', $input['payment_method'])->value('id');
+            if ($methodId !== $previous->payment_method_id) {
+                throw new ParkingException('Idempotency key already used with different payment details.', 'idempotency_conflict', 409);
+            }
+        }
     }
 
     private function finalize(ParkingSession $session, QrTicket $ticket, array $quote, CarbonInterface $exitAt, User $staff, ?string $resolution): Receipt
@@ -266,8 +319,9 @@ class ExitService
 
         $this->tickets->markUsed($ticket);
 
+        $number = Reference::make('RCP');
         $receipt = Receipt::create([
-            'number' => Reference::make('RCP'),
+            'number' => $number,
             'parking_session_id' => $session->id,
             'customer_id' => $session->customer_id,
             'total_minor' => $quote['total_minor'],
@@ -277,6 +331,7 @@ class ExitService
             'currency' => $quote['currency'],
             'breakdown' => [
                 'quote' => $quote,
+                'bill' => $this->bills->present($session->fresh(), $quote, $number),
                 'payments' => $session->payments()->with('method')->where('status', Payment::PAID)->get()
                     ->map(fn (Payment $p) => ['reference' => $p->reference, 'method' => $p->method->code, 'amount_minor' => $p->amount_minor, 'paid_at' => $p->paid_at?->toIso8601String()])->all(),
             ],

@@ -11,7 +11,7 @@
    * every environment: `php artisan db:seed --class=ReferenceDataSeeder` (vehicle types, zone types, payment methods, shifts; safe to re-run)
    * local only: `php artisan db:seed` also seeds the example zones A–E, packages, **example (not approved) prices** and demo users `admin|staff|auditor|customer@smart-parking.test`. Their password comes from `SEED_DEMO_PASSWORD`, or a random one is printed.
 7. Create the first Super Admin: `php artisan parking:create-super-admin`. The password is prompted (min 12 characters, mixed case, number and symbol) and never passed as an argument. At most 2 active Super Admins are allowed.
-8. Scheduler (inspections): add `php artisan schedule:work` locally, or a cron job for `schedule:run` in production.
+8. Scheduler (safety inspections hourly, expiry reminders every 5 minutes): run `php artisan schedule:work` locally, or a cron job for `schedule:run` in production.
 9. Tests: `php artisan test`. The MySQL race tests are separate: point `DB_*` at a **throwaway** database, then run `php artisan test tests/Concurrency`.
 
 Production checklist: `APP_DEBUG=false`, HTTPS, `SESSION_SECURE_COOKIE=true`, `SESSION_ENCRYPT=true`, a real mail driver for password resets, and a queue worker if notifications are later queued.
@@ -80,6 +80,9 @@ Overtime: grace defaults to 15 minutes (set per rate). After grace, overtime is 
 | `exit.release_slot_on` | `settlement` | SA only | `gate` = slot freed only after `confirm-left` |
 | `notifications.notify_admins_on_damage` | true | Admin, SA | BRD §9 |
 | `attendance.late_after_minutes` | 10 | Admin, SA | **Pending** |
+| `reminders.enabled` | true | Admin, SA | Requirement 9 |
+| `reminders.before_expiry_minutes` | `[60]` (array, 1 to 5 values) | Admin, SA | **Pending** (thresholds) |
+| `reminders.notify_on_expiry` | true | Admin, SA | Requirement 9 |
 
 ## 5. Frontend integration guide (Blade + Bootstrap + JS)
 
@@ -114,7 +117,7 @@ All modules below were verified with automated tests: **113 feature tests / 536 
 * **BRD §19 decisions** are behind the settings listed in §4. They need business approval, not code changes. Example prices and slot counts exist in the local seeder only.
 * Partial payments are not supported. At exit the balance must be paid in one payment. Discounts and taxes are 0 by default.
 * SMS/email channels are not configured, so notifications use the database channel only. Add `mail` or an SMS channel in each notification's `via()` once providers are chosen.
-* Staff can manually confirm "online" payments, because no gateway exists yet. This is audited. Consider limiting it to Admins once a real gateway is integrated.
+* Manual confirmation of "online" payments is **disabled** (PR #1) until a verified payment gateway exists, so an unverified payment can never be marked paid. A pending online payment can only be marked failed, and the exit is then settled another way.
 * Not done: data retention / photo purge jobs (policy pending), complaint escalation rules (pending), customer credit **redemption** at exit (credits are recorded and shown, but not yet applied automatically).
 * Auth pages (Blade) are owned by the frontend branch.
 
@@ -131,3 +134,41 @@ All modules below were verified with automated tests: **113 feature tests / 536 
 | SMS / email | – | Notification channels |
 
 To add a driver, implement the interface, register it in `AppServiceProvider::DRIVERS`, and select it with `PARKING_*_DRIVER` in `.env`.
+
+
+## 8. Release: vehicle fuel types, penalties, bills, reminders, calendar and filters
+
+### Requirement coverage
+
+| # | Requirement | Before | Now |
+|---|---|---|---|
+| 1 | Vehicle categories | Partial | **Done.** Admin create/update/activate/deactivate with conflict checks. Inactive categories are refused for new vehicles and entries. The category is recorded on each session. |
+| 2 | Fuel type | Missing | **Done.** `vehicles.fuel_type`, separate from category and validated per category. Old records backfilled: non-motorised → `not_applicable`, others → `other`. |
+| 3 | Vehicle CRUD | Partial | **Done.** Plate search, category/fuel filters, staff register, admin owner linking, history kept on unlink, category change blocked while parked |
+| 4 | Entry / exit | Implemented | Fuel captured at entry. Lost-ticket path (penalty + reissue). Existing locks and idempotency unchanged. |
+| 5 | Duration & final bill | Partial | **Done.** Bill endpoint plus a bill embedded in receipts, with every field the requirement lists |
+| 6 | Payment methods | Mostly done | A repeated exit idempotency key with a different method is rejected. **ENP: not implemented, needs clarification.** |
+| 7 | Penalties | Missing | **Done.** Catalogue, apply, admin waiver, duplicate guard, shown on bill and reports, audited, never automatic |
+| 8 | Calendar history | Partial | **Done.** `/reports/calendar` plus `date`/`date_field` filters, in Sri Lanka days |
+| 9 | Remaining time / reminders | Missing | **Done.** Session `time` status, `/staff/sessions/expiring`, idempotent in-app reminders. No SMS/WhatsApp. |
+| 10 | Four filters | Partial | **Done** for category, fuel, status and date range, plus plate, zone, package and payment status, all combinable. The "primary four" are configurable pending confirmation. |
+| 11 | Security / integrity | – | Unique keys for penalties and reminders. Customer filters are always scoped to the customer. Category/fuel history is fixed at entry. All new write routes are covered by the auditor-forbidden route sweep. |
+
+### Database changes (additive, backward compatible)
+
+| Migration | Change |
+|---|---|
+| `2026_11_02_000001` | `vehicle_categories.is_motorized` (bicycle = false). `vehicles.fuel_type` plus index `(fuel_type, vehicle_category_id)`, backfilled. `parking_sessions.vehicle_category_id` (FK) and `fuel_type`, backfilled from the vehicle, plus indexes `(vehicle_category_id, entry_at)`, `(fuel_type, entry_at)`, `(status, entry_at)`, `(status, package_ends_at)`. |
+| `2026_11_02_000002` | `penalty_types` (unique `code`). `session_penalties` with the amount copied at application, applied/waived audit columns, and a unique `active_key` (`session:type` while applied, `NULL` once waived). |
+| `2026_11_02_000003` | `session_reminders` with a unique key `(session, kind, threshold)` |
+
+Rollback and re-apply were verified on MySQL 8.0 and SQLite. A run against legacy-shaped data (vehicles and sessions without the new columns) backfilled correctly.
+
+### Open questions for the stakeholder
+
+1. **ENP bill method.** Its meaning isn't confirmed (e-payment? an external provider? a bill format?). Nothing ENP-specific has been built.
+2. **"Four filter functions".** The current proposal is vehicle category, fuel type, status and date range. Please confirm, or name the four. Changing them is a config edit only.
+3. **Fuel type of old records.** Motorised vehicles were backfilled as `other`. Should staff be prompted to correct it at the next entry?
+4. **Penalty amounts and rules.** The seeded amounts are examples. Should any penalty ever be applied automatically, for example after X hours of overtime? Currently none are.
+5. **Reminder thresholds and channels.** The default is 60 minutes before expiry plus a notice at expiry. SMS/WhatsApp providers are still to be chosen.
+6. **Tax on penalties.** Currently not taxed; tax is 0 overall until approved.

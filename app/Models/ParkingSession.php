@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\FuelType;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +23,7 @@ class ParkingSession extends Model
     public const CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'uuid', 'reference', 'vehicle_id', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id',
+        'uuid', 'reference', 'vehicle_id', 'vehicle_category_id', 'fuel_type', 'customer_id', 'customer_name', 'customer_phone', 'parking_zone_id', 'parking_slot_id',
         'parking_package_id', 'package_rate_id', 'safety_rate_id', 'has_safety', 'status',
         'entry_at', 'package_ends_at', 'exit_at', 'entry_staff_id', 'exit_staff_id',
         'pricing_snapshot', 'charge_breakdown', 'total_charge_minor',
@@ -32,6 +34,7 @@ class ParkingSession extends Model
     {
         return [
             'has_safety' => 'boolean',
+            'fuel_type' => FuelType::class,
             'entry_at' => 'datetime',
             'package_ends_at' => 'datetime',
             'exit_at' => 'datetime',
@@ -54,6 +57,29 @@ class ParkingSession extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class)->withTrashed();
+    }
+
+    /**
+     * Vehicle category recorded at entry (historical; used for billing and filters).
+     */
+    public function vehicleCategory(): BelongsTo
+    {
+        return $this->belongsTo(VehicleCategory::class);
+    }
+
+    public function penalties(): HasMany
+    {
+        return $this->hasMany(SessionPenalty::class);
+    }
+
+    public function appliedPenalties(): HasMany
+    {
+        return $this->penalties()->where('status', SessionPenalty::APPLIED);
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(SessionReminder::class);
     }
 
     public function customer(): BelongsTo
@@ -119,6 +145,41 @@ class ParkingSession extends Model
     public function incidents(): HasMany
     {
         return $this->hasMany(Incident::class);
+    }
+
+    /**
+     * Remaining-time information for the package.
+     *
+     * Status values: no_fixed_expiry (hourly packages: nothing to count down), closed,
+     * active, expiring_soon (within $warnMinutes), in_grace (past end, inside grace), expired.
+     *
+     * @return array{status: string, package_ends_at: ?string, grace_ends_at: ?string, remaining_minutes: ?int, overdue_minutes: ?int}
+     */
+    public function timeStatus(?CarbonInterface $now = null, int $warnMinutes = 60): array
+    {
+        $now ??= now();
+        $endsAt = $this->package_ends_at;
+        $grace = (int) ($this->pricing_snapshot['rate']['grace_minutes'] ?? 0);
+        $graceEndsAt = $endsAt?->copy()->addMinutes($grace);
+        $base = ['package_ends_at' => $endsAt?->toIso8601String(), 'grace_ends_at' => $graceEndsAt?->toIso8601String(), 'remaining_minutes' => null, 'overdue_minutes' => null];
+
+        if (! $this->isOpen()) {
+            return ['status' => 'closed'] + $base;
+        }
+        if (! $endsAt) {
+            return ['status' => 'no_fixed_expiry'] + $base;
+        }
+
+        $seconds = $endsAt->getTimestamp() - $now->getTimestamp();
+        if ($seconds > 0) {
+            $remaining = (int) ceil($seconds / 60);
+
+            return ['status' => $remaining <= $warnMinutes ? 'expiring_soon' : 'active', 'remaining_minutes' => $remaining] + $base;
+        }
+
+        $overdue = (int) floor(-$seconds / 60);
+
+        return ['status' => $now <= $graceEndsAt ? 'in_grace' : 'expired', 'remaining_minutes' => 0, 'overdue_minutes' => $overdue] + $base;
     }
 
     public function paidAmountMinor(): int

@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('parking:schedule-inspections')->hourly()->withoutOverlapping();
+Schedule::command('parking:send-expiry-reminders')->everyFiveMinutes()->withoutOverlapping();

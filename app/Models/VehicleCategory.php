@@ -20,11 +20,11 @@ class VehicleCategory extends Model
 
     public const HEAVY = 'heavy';
 
-    protected $fillable = ['code', 'name', 'requires_plate', 'is_active', 'sort_order'];
+    protected $fillable = ['code', 'name', 'requires_plate', 'is_motorized', 'is_active', 'sort_order'];
 
     protected function casts(): array
     {
-        return ['requires_plate' => 'boolean', 'is_active' => 'boolean'];
+        return ['requires_plate' => 'boolean', 'is_motorized' => 'boolean', 'is_active' => 'boolean'];
     }
 
     public function slots(): HasMany

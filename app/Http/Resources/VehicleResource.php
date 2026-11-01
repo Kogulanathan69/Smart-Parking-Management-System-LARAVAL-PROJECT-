@@ -16,6 +16,8 @@ class VehicleResource extends JsonResource
             'is_reference' => $this->is_reference,
             'vehicle_category' => $this->whenLoaded('category', fn () => $this->category->code),
             'vehicle_category_id' => $this->vehicle_category_id,
+            'fuel_type' => $this->fuel_type?->value,
+            'fuel_type_label' => $this->fuel_type?->label(),
             'make' => $this->make,
             'model' => $this->model,
             'color' => $this->color,

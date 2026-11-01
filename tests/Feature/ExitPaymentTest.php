@@ -10,26 +10,17 @@ use App\Models\Receipt;
 use App\Models\Refund;
 use App\Models\User;
 use App\Services\SettingsService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
 
 beforeEach(function () {
     seedParking();
     $this->staff = userWithRole(User::ROLE_STAFF);
 });
 
-function settle(string $payload, array $extra = []): TestResponse
-{
-    return test()->postJson('/api/v1/staff/exits/settle', array_merge([
-        'qr_payload' => $payload,
-        'idempotency_key' => (string) Str::uuid(),
-        'payment_method' => 'cash',
-    ], $extra));
-}
-
 it('previews the full calculation before payment', function () {
     // Freeze the clock before entry so the 25-hour duration is exact.
-    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-01 08:00:00', 'Asia/Colombo'));
+    $this->travelTo(CarbonImmutable::parse('2026-11-01 08:00:00', 'Asia/Colombo'));
     [, $payload] = recordEntry($this->staff);
     $this->travel(25)->hours();
 
@@ -172,10 +163,11 @@ it('does not replay pending payments through a revoked QR after reissue', functi
     $newPayload = $this->postJson("/api/v1/staff/sessions/{$session->uuid}/ticket/reissue")
         ->assertOk()->json('ticket.qr_payload');
 
-    settle($oldPayload, ['idempotency_key' => $key])
+    settle($oldPayload, ['idempotency_key' => $key, 'payment_method' => 'online'])
         ->assertStatus(409)->assertJsonPath('error_code', 'ticket_already_used');
 
-    settle($newPayload, ['idempotency_key' => $key])
+    // A genuine retry repeats the same payment details.
+    settle($newPayload, ['idempotency_key' => $key, 'payment_method' => 'online'])
         ->assertStatus(202)->assertJsonPath('replayed', true);
 
     expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
@@ -269,6 +261,8 @@ it('replays an existing prepayment after session closure without creating anothe
 });
 
 it('turns unused prepaid weekly time into customer credit on early exit', function () {
+    // Freeze the clock: a single elapsed second would otherwise start a third billing day.
+    $this->freezeSecond();
     $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000002']);
     [$session, $payload] = recordEntry($this->staff, [
         'parking_zone_id' => zone('C')->id, 'parking_package_id' => package('weekly')->id, 'customer_phone' => '0770000002',
