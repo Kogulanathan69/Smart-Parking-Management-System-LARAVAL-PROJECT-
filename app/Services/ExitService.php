@@ -73,6 +73,20 @@ class ExitService
         $result = DB::transaction(function () use ($staff, $input) {
             $ticket = $this->tickets->resolve($input['qr_payload'], lockSession: true);
             $session = ParkingSession::findOrFail($ticket->parking_session_id);
+
+            // Another request may have completed payment while we waited for
+            // the session lock. Recheck under that lock before charging again.
+            if ($previous = $this->payments->findByIdempotencyKey($input['idempotency_key'])) {
+                if ($previous->parking_session_id !== $session->id) {
+                    throw new ParkingException('Idempotency key already used for another session.', 'idempotency_conflict', 409);
+                }
+                if ($ticket->status === QrTicket::VOID) {
+                    throw new ParkingException('This QR ticket has been revoked.', 'ticket_already_used', 409);
+                }
+
+                return $this->replay($previous);
+            }
+
             $this->assertSettleable($ticket, $session);
 
             if ($session->payments()->where('status', Payment::PENDING)->exists()) {
