@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Api\Staff\SessionController;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SessionFilterRequest;
 use App\Http\Resources\ParkingSessionResource;
 use App\Http\Resources\ReceiptResource;
 use App\Models\CustomerCredit;
@@ -11,21 +12,23 @@ use App\Models\ParkingSession;
 use App\Models\Receipt;
 use App\Services\BillPresenter;
 use App\Services\ExitService;
+use App\Support\SessionFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ParkingHistoryController extends Controller
 {
-    public function sessions(Request $request): AnonymousResourceCollection
+    /**
+     * Own sessions only (customer_id scope is applied before any filter).
+     */
+    public function sessions(SessionFilterRequest $request): AnonymousResourceCollection
     {
-        $sessions = $request->user()->parkingSessions()
-            ->with(['vehicle.category', 'zone', 'slot', 'package', 'receipt'])
-            ->when($request->query('status'), fn ($q, $s) => $q->where('status', $s))
-            ->latest('entry_at')
-            ->paginate(20);
+        $query = $request->user()->parkingSessions()->with(['vehicle.category', 'vehicleCategory', 'zone', 'slot', 'package', 'receipt'])->getQuery();
 
-        return ParkingSessionResource::collection($sessions);
+        return ParkingSessionResource::collection(
+            SessionFilters::apply($query, $request->validated())->latest('entry_at')->orderByDesc('id')->paginate($request->integer('per_page', 20))->withQueryString()
+        );
     }
 
     public function showSession(ParkingSession $session): ParkingSessionResource

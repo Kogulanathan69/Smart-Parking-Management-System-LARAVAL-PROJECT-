@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ParkingException;
 use App\Models\Attendance;
 use App\Models\Incident;
 use App\Models\ParkingSession;
@@ -97,6 +98,75 @@ class ReportService
             'waived_minor' => (int) $waived->sum('amount_minor'),
             'by_type' => $applied->groupBy(fn ($p) => $p->type->code)
                 ->map(fn ($g, $code) => ['code' => $code, 'count' => $g->count(), 'amount_minor' => (int) $g->sum('amount_minor')])->values()->all(),
+        ];
+    }
+
+    /**
+     * Per business-local day: entries, exits, sessions still parked at the end of the day,
+     * revenue received (by paid_at) and penalties applied (by applied_at).
+     *
+     * @return array{from: string, to: string, timezone: string, currency: string, days: list<array<string, mixed>>}
+     */
+    public function calendar(?string $month, ?string $from, ?string $to): array
+    {
+        $tz = config('parking.business_timezone');
+        if ($month) {
+            $startLocal = CarbonImmutable::parse($month.'-01', $tz)->startOfMonth();
+            $endLocal = $startLocal->endOfMonth();
+        } elseif ($from && $to) {
+            $startLocal = CarbonImmutable::parse($from, $tz)->startOfDay();
+            $endLocal = CarbonImmutable::parse($to, $tz)->endOfDay();
+        } else {
+            $startLocal = CarbonImmutable::now($tz)->startOfMonth();
+            $endLocal = $startLocal->endOfMonth();
+        }
+        if ($startLocal->diffInDays($endLocal) > 62) {
+            throw new ParkingException('The calendar range is limited to 62 days.', 'range_too_large');
+        }
+        [$start, $end] = [$startLocal->utc(), $endLocal->utc()];
+        $day = fn ($instant) => CarbonImmutable::instance($instant)->setTimezone($tz)->toDateString();
+
+        $sessions = ParkingSession::query()
+            ->select(['id', 'entry_at', 'exit_at', 'status'])
+            ->where('entry_at', '<=', $end)
+            ->where(fn ($q) => $q->whereNull('exit_at')->orWhere('exit_at', '>=', $start))
+            ->get();
+        $payments = Payment::where('status', Payment::PAID)->whereBetween('paid_at', [$start, $end])->get(['amount_minor', 'paid_at']);
+        $penalties = SessionPenalty::where('status', SessionPenalty::APPLIED)->whereBetween('applied_at', [$start, $end])->get(['amount_minor', 'applied_at']);
+
+        $days = [];
+        for ($cursor = $startLocal; $cursor <= $endLocal; $cursor = $cursor->addDay()) {
+            $dayEnd = $cursor->endOfDay()->utc();
+            $days[$cursor->toDateString()] = [
+                'date' => $cursor->toDateString(),
+                'entries' => 0,
+                'exits' => 0,
+                'parked_at_end_of_day' => $sessions->filter(fn ($s) => $s->entry_at <= $dayEnd && ($s->exit_at === null || $s->exit_at > $dayEnd))->count(),
+                'revenue_minor' => 0,
+                'penalties_minor' => 0,
+            ];
+        }
+        foreach ($sessions as $s) {
+            if ($s->entry_at >= $start && isset($days[$day($s->entry_at)])) {
+                $days[$day($s->entry_at)]['entries']++;
+            }
+            if ($s->exit_at && $s->exit_at <= $end && isset($days[$day($s->exit_at)])) {
+                $days[$day($s->exit_at)]['exits']++;
+            }
+        }
+        foreach ($payments as $p) {
+            $days[$day($p->paid_at)]['revenue_minor'] += $p->amount_minor;
+        }
+        foreach ($penalties as $p) {
+            $days[$day($p->applied_at)]['penalties_minor'] += $p->amount_minor;
+        }
+
+        return [
+            'from' => $startLocal->toDateString(),
+            'to' => $endLocal->toDateString(),
+            'timezone' => $tz,
+            'currency' => config('parking.currency'),
+            'days' => array_values($days),
         ];
     }
 

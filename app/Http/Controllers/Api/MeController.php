@@ -10,6 +10,7 @@ use App\Models\ParkingPackage;
 use App\Models\PaymentMethod;
 use App\Models\VehicleCategory;
 use App\Models\ZoneType;
+use App\Support\SessionFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,6 +34,7 @@ class MeController extends Controller
             'fuel_types' => collect(FuelType::cases())->map(fn (FuelType $f) => ['value' => $f->value, 'label' => $f->label()]),
             'zone_types' => ZoneType::where('is_active', true)->get(['id', 'code', 'name', 'is_safety']),
             'packages' => PackageResource::collection(ParkingPackage::with('zoneTypes')->where('is_active', true)->orderBy('id')->get()),
+            'session_filters' => SessionFilters::options(),
             'payment_methods' => PaymentMethod::where('is_active', true)->get(['code', 'name', 'confirmation', 'requires_reference']),
         ]]);
     }

@@ -67,6 +67,7 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
         Route::post('entries', [EntryController::class, 'store'])->middleware('throttle:gate')->name('entries.store');
 
         Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+        Route::get('sessions/expiring', [SessionController::class, 'expiring'])->name('sessions.expiring');
         Route::get('sessions/{session}', [SessionController::class, 'show'])->name('sessions.show');
         Route::get('sessions/{session}/ticket', [SessionController::class, 'ticket'])->name('sessions.ticket');
         Route::get('sessions/{session}/bill', [SessionController::class, 'bill'])->name('sessions.bill');
@@ -153,6 +154,7 @@ Route::middleware(['web', 'auth', 'active', 'throttle:api'])->name('api.')->grou
         Route::get('financial', [ReportController::class, 'financial'])->name('financial');
         Route::get('staff-performance', [ReportController::class, 'staffPerformance'])->name('staff-performance');
         Route::get('sessions', [ReportController::class, 'sessions'])->name('sessions');
+        Route::get('calendar', [ReportController::class, 'calendar'])->name('calendar');
         Route::get('payments', [ReportController::class, 'payments'])->name('payments');
         Route::get('inspections', [ReportController::class, 'inspections'])->name('inspections');
     });

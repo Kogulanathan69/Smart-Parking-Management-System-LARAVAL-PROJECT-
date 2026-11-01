@@ -5,31 +5,49 @@ namespace App\Http\Controllers\Api\Staff;
 use App\Contracts\TicketPrinter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PrepayRequest;
+use App\Http\Requests\SessionFilterRequest;
 use App\Http\Resources\InspectionResource;
 use App\Http\Resources\ParkingSessionResource;
 use App\Http\Resources\PaymentResource;
 use App\Models\ParkingSession;
-use App\Models\Vehicle;
 use App\Services\AuditLogger;
 use App\Services\BillPresenter;
 use App\Services\ExitService;
 use App\Services\QrTicketService;
+use App\Support\SessionFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SessionController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    /**
+     * Gate session list. Defaults to open sessions (previous behaviour); pass `status` and/or date
+     * filters to browse history. All SessionFilters are combinable.
+     */
+    public function index(SessionFilterRequest $request): AnonymousResourceCollection
     {
-        $sessions = ParkingSession::with(['vehicle.category', 'zone', 'slot', 'package'])
-            ->whereIn('status', [ParkingSession::ACTIVE, ParkingSession::EXIT_AUTHORIZED])
-            ->when($request->query('zone_id'), fn ($q, $z) => $q->where('parking_zone_id', $z))
-            ->when($request->query('q'), fn ($q, $term) => $q->whereHas('vehicle', fn ($v) => $v->where('identifier', 'like', '%'.Vehicle::normalizePlate($term).'%')))
-            ->latest('entry_at')
-            ->paginate(25);
+        $filters = $request->validated();
+        $filters['status'] ??= [ParkingSession::ACTIVE, ParkingSession::EXIT_AUTHORIZED];
 
-        return ParkingSessionResource::collection($sessions);
+        $query = SessionFilters::apply(ParkingSession::query()->with(['vehicle.category', 'vehicleCategory', 'zone', 'slot', 'package']), $filters);
+
+        return ParkingSessionResource::collection($query->latest('entry_at')->orderByDesc('id')->paginate($request->integer('per_page', 25))->withQueryString());
+    }
+
+    /**
+     * Open sessions whose fixed package ends within `within` minutes (default 60), plus expired ones.
+     */
+    public function expiring(Request $request): AnonymousResourceCollection
+    {
+        $within = (int) ($request->validate(['within' => ['nullable', 'integer', 'min:1', 'max:10080']])['within'] ?? 60);
+
+        return ParkingSessionResource::collection(ParkingSession::with(['vehicle.category', 'vehicleCategory', 'zone', 'slot', 'package'])
+            ->where('status', ParkingSession::ACTIVE)
+            ->whereNotNull('package_ends_at')
+            ->where('package_ends_at', '<=', now()->addMinutes($within))
+            ->orderBy('package_ends_at')
+            ->paginate(50));
     }
 
     public function show(ParkingSession $session): JsonResponse
