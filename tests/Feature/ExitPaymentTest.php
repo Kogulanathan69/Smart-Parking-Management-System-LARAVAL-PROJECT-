@@ -140,6 +140,29 @@ it('rejects cross-session replay of a pending online payment', function () {
         ->and($secondSession->receipt)->toBeNull();
 });
 
+it('does not replay pending payments through a revoked QR after reissue', function () {
+    [$session, $oldPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($oldPayload, [
+        'idempotency_key' => $key,
+        'payment_method' => 'online',
+    ])->assertStatus(202)->assertJsonPath('status', 'payment_pending');
+
+    $newPayload = $this->postJson("/api/v1/staff/sessions/{$session->uuid}/ticket/reissue")
+        ->assertOk()->json('ticket.qr_payload');
+
+    settle($oldPayload, ['idempotency_key' => $key])
+        ->assertStatus(409)->assertJsonPath('error_code', 'ticket_already_used');
+
+    settle($newPayload, ['idempotency_key' => $key])
+        ->assertStatus(202)->assertJsonPath('replayed', true);
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and($session->refresh()->status)->toBe(ParkingSession::ACTIVE);
+});
+
 it('rejects insufficient cash and keeps the session open', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
