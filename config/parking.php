@@ -72,6 +72,12 @@ return [
 
         'notifications.notify_admins_on_damage' => true,
 
+        /** Package expiry reminders (customers with an account; in-app notifications only). */
+        'reminders.enabled' => true,
+        /** Minutes before package end at which a reminder is sent. PENDING: thresholds to confirm. */
+        'reminders.before_expiry_minutes' => [60],
+        'reminders.notify_on_expiry' => true,
+
         /** Minutes after scheduled shift start before check-in counts as late. PENDING. */
         'attendance.late_after_minutes' => 10,
     ],
@@ -84,5 +90,16 @@ return [
         'safety' => ['super_admin', 'admin'],
         'attendance' => ['super_admin', 'admin'],
         'exit' => ['super_admin'],
+        'reminders' => ['super_admin', 'admin'],
+    ],
+
+    /*
+    | Parking record filters. "primary" is the PROPOSED interpretation of the stakeholder's
+    | "four filter functions" and only drives which filters the UI shows first; every filter in
+    | "available" is always accepted by the API. PENDING stakeholder confirmation.
+    */
+    'session_filters' => [
+        'primary' => ['vehicle_category', 'fuel_type', 'status', 'date_range'],
+        'available' => ['vehicle_category', 'fuel_type', 'status', 'date_range', 'plate', 'zone', 'package', 'payment_status'],
     ],
 ];

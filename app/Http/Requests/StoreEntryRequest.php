@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\FuelType;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,6 +25,7 @@ class StoreEntryRequest extends FormRequest
         return [
             'plate_number' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9 \-]+$/'],
             'vehicle_category_id' => ['required', 'integer', 'exists:vehicle_categories,id'],
+            'fuel_type' => ['nullable', Rule::enum(FuelType::class)],
             'parking_zone_id' => ['required', 'integer', 'exists:parking_zones,id'],
             'parking_package_id' => ['required', 'integer', 'exists:parking_packages,id'],
             'parking_slot_id' => ['nullable', 'integer', 'exists:parking_slots,id'],

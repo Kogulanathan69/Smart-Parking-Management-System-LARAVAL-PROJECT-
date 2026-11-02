@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\FuelType;
 use App\Exceptions\ParkingException;
+use App\Models\ParkingSession;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCategory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class VehicleService
@@ -20,15 +24,18 @@ class VehicleService
     /**
      * Staff-side lookup or registration at the gate.
      * Plate-less vehicles (e.g. bicycles) get a unique generated reference (BRD §4.2).
+     * A fuel type supplied by staff corrects the stored value (audited).
      */
-    public function findOrRegisterAtGate(?string $plate, VehicleCategory $category, User $staff, ?User $owner = null): Vehicle
+    public function findOrRegisterAtGate(?string $plate, VehicleCategory $category, User $staff, ?User $owner = null, ?string $fuelType = null): Vehicle
     {
+        $fuel = $fuelType !== null ? $this->resolveFuel($category, $fuelType) : null;
+
         if ($plate === null || trim($plate) === '') {
             if ($category->requires_plate) {
                 throw new ParkingException('A licence plate is required for this vehicle category.', 'plate_required');
             }
 
-            return $this->createVehicle(null, $category, $owner, $staff);
+            return $this->createVehicle(null, $category, $owner, $staff, $fuel);
         }
 
         $vehicle = Vehicle::withTrashed()->where('identifier', Vehicle::normalizePlate($plate))->first();
@@ -41,11 +48,16 @@ class VehicleService
                     'registered_category' => $vehicle->category->code,
                 ]);
             }
+            if ($fuel && $vehicle->fuel_type !== $fuel) {
+                $old = $vehicle->fuel_type?->value;
+                $vehicle->forceFill(['fuel_type' => $fuel])->save();
+                $this->audit->log('vehicle.fuel_type_corrected', $vehicle, ['fuel_type' => $old], ['fuel_type' => $fuel->value]);
+            }
 
             return $vehicle;
         }
 
-        return $this->createVehicle($plate, $category, $owner, $staff);
+        return $this->createVehicle($plate, $category, $owner, $staff, $fuel);
     }
 
     /**
@@ -53,8 +65,10 @@ class VehicleService
      */
     public function registerForCustomer(User $customer, array $data): Vehicle
     {
-        $category = VehicleCategory::findOrFail($data['vehicle_category_id']);
+        $category = $this->activeCategory((int) $data['vehicle_category_id']);
+        $fuel = $this->resolveFuel($category, $data['fuel_type'] ?? null);
         $plate = $data['plate_number'] ?? null;
+        $details = array_intersect_key($data, array_flip(['make', 'model', 'color']));
 
         if ($plate) {
             $existing = Vehicle::withTrashed()->where('identifier', Vehicle::normalizePlate($plate))->first();
@@ -63,10 +77,13 @@ class VehicleService
                 throw new ParkingException('This vehicle cannot be added to your account. Please contact the parking office.', 'vehicle_unavailable');
             }
             if ($existing) {
+                if ($existing->vehicle_category_id !== $category->id) {
+                    throw new ParkingException('This vehicle is registered under a different vehicle type. Please contact the parking office.', 'category_mismatch', 409);
+                }
                 if ($existing->trashed()) {
                     $existing->restore();
                 }
-                $existing->forceFill(['owner_id' => $customer->id] + array_intersect_key($data, array_flip(['make', 'model', 'color'])))->save();
+                $existing->forceFill(['owner_id' => $customer->id, 'fuel_type' => $fuel] + $details)->save();
                 $this->audit->log('vehicle.claimed', $existing, [], ['owner_id' => $customer->id]);
 
                 return $existing;
@@ -75,13 +92,104 @@ class VehicleService
             throw new ParkingException('A licence plate is required for this vehicle category.', 'plate_required');
         }
 
-        $vehicle = $this->createVehicle($plate, $category, $customer, $customer);
-        $vehicle->fill(array_intersect_key($data, array_flip(['make', 'model', 'color'])))->save();
+        $vehicle = $this->createVehicle($plate, $category, $customer, $customer, $fuel);
+        $vehicle->fill($details)->save();
 
         return $vehicle;
     }
 
-    private function createVehicle(?string $plate, VehicleCategory $category, ?User $owner, User $by): Vehicle
+    /**
+     * Update vehicle details (customer on own vehicle, or admin).
+     * A category change is refused while the vehicle has an open parking session,
+     * because the session was priced and allocated for the old category.
+     *
+     * @param  array{vehicle_category_id?: int, fuel_type?: string, make?: ?string, model?: ?string, color?: ?string, owner_id?: ?int}  $data
+     */
+    public function update(Vehicle $vehicle, array $data, User $by): Vehicle
+    {
+        return DB::transaction(function () use ($vehicle, $data, $by) {
+            $locked = Vehicle::whereKey($vehicle->id)->lockForUpdate()->firstOrFail();
+            $original = $locked->getAttributes();
+            $category = $locked->category;
+
+            if (isset($data['vehicle_category_id']) && (int) $data['vehicle_category_id'] !== $locked->vehicle_category_id) {
+                if (ParkingSession::where('open_vehicle_key', $locked->id)->exists()) {
+                    throw new ParkingException('The vehicle type cannot be changed while the vehicle is parked.', 'vehicle_in_active_session', 409);
+                }
+                $category = $this->activeCategory((int) $data['vehicle_category_id']);
+                if ($category->requires_plate && $locked->is_reference) {
+                    throw new ParkingException('This vehicle type requires a licence plate.', 'plate_required');
+                }
+                $locked->vehicle_category_id = $category->id;
+                // Re-validate the fuel type against the new category (e.g. bicycle -> not_applicable).
+                $data['fuel_type'] ??= in_array($locked->fuel_type?->value, FuelType::allowedFor($category->is_motorized), true)
+                    ? $locked->fuel_type->value
+                    : FuelType::defaultFor($category->is_motorized)->value;
+            }
+
+            if (array_key_exists('fuel_type', $data)) {
+                $locked->fuel_type = $this->resolveFuel($category, $data['fuel_type']);
+            }
+
+            if (array_key_exists('owner_id', $data)) {
+                if ($data['owner_id'] !== null && ! User::whereKey($data['owner_id'])->where('role', User::ROLE_CUSTOMER)->exists()) {
+                    throw new ParkingException('Vehicles can only be linked to customer accounts.', 'invalid_customer');
+                }
+                $locked->owner_id = $data['owner_id'];
+            }
+
+            $locked->fill(array_intersect_key($data, array_flip(['make', 'model', 'color'])))->save();
+            $this->audit->logChanges('vehicle.updated', $locked, $original, ['by' => $by->id]);
+
+            return $locked->load('category');
+        });
+    }
+
+    /**
+     * Shared, validated filters for vehicle lists.
+     *
+     * @param  array{q?: ?string, vehicle_category_id?: ?int, fuel_type?: ?string, owner_id?: ?int}  $filters
+     */
+    public function applyFilters(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['q'] ?? null, fn ($q, $term) => $q->where('identifier', 'like', '%'.Vehicle::normalizePlate($term).'%'))
+            ->when($filters['vehicle_category_id'] ?? null, fn ($q, $id) => $q->where('vehicle_category_id', $id))
+            ->when($filters['fuel_type'] ?? null, fn ($q, $fuel) => $q->where('fuel_type', $fuel))
+            ->when($filters['owner_id'] ?? null, fn ($q, $owner) => $q->where('owner_id', $owner));
+    }
+
+    public function resolveFuel(VehicleCategory $category, ?string $fuelType): FuelType
+    {
+        if ($fuelType === null || $fuelType === '') {
+            return FuelType::defaultFor($category->is_motorized);
+        }
+        $fuel = FuelType::tryFrom($fuelType);
+        if (! $fuel || ! in_array($fuel->value, FuelType::allowedFor($category->is_motorized), true)) {
+            throw new ParkingException(
+                $category->is_motorized
+                    ? 'Choose a fuel type for this vehicle (not_applicable is only for non-motorised vehicles).'
+                    : 'Non-motorised vehicles must use the fuel type not_applicable.',
+                'fuel_type_not_allowed',
+                422,
+                ['allowed' => FuelType::allowedFor($category->is_motorized)]
+            );
+        }
+
+        return $fuel;
+    }
+
+    private function activeCategory(int $id): VehicleCategory
+    {
+        $category = VehicleCategory::find($id);
+        if (! $category || ! $category->is_active) {
+            throw new ParkingException('This vehicle type is not available.', 'category_inactive');
+        }
+
+        return $category;
+    }
+
+    private function createVehicle(?string $plate, VehicleCategory $category, ?User $owner, User $by, ?FuelType $fuel = null): Vehicle
     {
         $identifier = $plate ? Vehicle::normalizePlate($plate) : $this->uniqueReference($category);
 
@@ -90,10 +198,11 @@ class VehicleService
             'plate_number' => $plate ? strtoupper(trim($plate)) : null,
             'is_reference' => $plate === null,
             'vehicle_category_id' => $category->id,
+            'fuel_type' => $fuel ?? FuelType::defaultFor($category->is_motorized),
             'owner_id' => $owner?->id,
             'registered_by' => $by->id,
         ]);
-        $this->audit->log('vehicle.registered', $vehicle, [], ['identifier' => $identifier]);
+        $this->audit->log('vehicle.registered', $vehicle, [], ['identifier' => $identifier, 'fuel_type' => $vehicle->fuel_type->value]);
 
         return $vehicle;
     }

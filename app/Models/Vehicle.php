@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FuelType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,12 +16,12 @@ class Vehicle extends Model
 
     protected $fillable = [
         'identifier', 'plate_number', 'is_reference', 'vehicle_category_id',
-        'owner_id', 'make', 'model', 'color', 'registered_by',
+        'owner_id', 'make', 'model', 'color', 'fuel_type', 'registered_by',
     ];
 
     protected function casts(): array
     {
-        return ['is_reference' => 'boolean'];
+        return ['is_reference' => 'boolean', 'fuel_type' => FuelType::class];
     }
 
     /**

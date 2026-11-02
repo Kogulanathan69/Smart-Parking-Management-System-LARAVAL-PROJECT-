@@ -36,6 +36,18 @@ class SettingController extends Controller
         'exit.release_slot_on' => ['in:settlement,gate'],
         'notifications.notify_admins_on_damage' => ['boolean'],
         'attendance.late_after_minutes' => ['integer', 'min:0', 'max:240'],
+        'reminders.enabled' => ['boolean'],
+        'reminders.before_expiry_minutes' => ['array', 'min:1', 'max:5'],
+        'reminders.notify_on_expiry' => ['boolean'],
+    ];
+
+    /**
+     * Rules for each element of array-valued settings.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const ITEM_RULES = [
+        'reminders.before_expiry_minutes' => ['integer', 'min:1', 'max:10080'],
     ];
 
     public function index(Request $request, SettingsService $settings): JsonResponse
@@ -53,9 +65,16 @@ class SettingController extends Controller
     {
         abort_unless(isset(self::RULES[$key]), 404, 'Unknown setting.');
         $value = $request->input('value');
-        $validator = validator(['value' => $value], ['value' => self::RULES[$key]]);
+        $rules = ['value' => self::RULES[$key]];
+        if (isset(self::ITEM_RULES[$key])) {
+            $rules['value.*'] = self::ITEM_RULES[$key];
+        }
+        $validator = validator(['value' => $value], $rules);
         if ($validator->fails()) {
             throw new ValidationException($validator);
+        }
+        if (isset(self::ITEM_RULES[$key])) {
+            $value = collect($value)->map(fn ($v) => (int) $v)->unique()->sortDesc()->values()->all();
         }
         if (in_array('integer', self::RULES[$key], true) && $value !== null) {
             $value = (int) $value;

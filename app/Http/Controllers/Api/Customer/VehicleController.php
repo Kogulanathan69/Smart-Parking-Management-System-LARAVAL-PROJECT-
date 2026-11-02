@@ -5,19 +5,25 @@ namespace App\Http\Controllers\Api\Customer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
+use App\Http\Requests\VehicleFilterRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Vehicle;
 use App\Services\AuditLogger;
 use App\Services\VehicleService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class VehicleController extends Controller
 {
-    public function index(Request $request): AnonymousResourceCollection
+    /**
+     * Own vehicles only. Optional filters: q (plate search), vehicle_category_id, fuel_type.
+     */
+    public function index(VehicleFilterRequest $request, VehicleService $vehicles): AnonymousResourceCollection
     {
-        return VehicleResource::collection($request->user()->vehicles()->with(['category', 'openSession'])->orderBy('identifier')->get());
+        $query = $request->user()->vehicles()->with(['category', 'openSession'])->getQuery();
+        $filters = $request->safe()->except('owner_id');
+
+        return VehicleResource::collection($vehicles->applyFilters($query, $filters)->orderBy('identifier')->get());
     }
 
     public function store(StoreVehicleRequest $request, VehicleService $vehicles): JsonResponse
@@ -34,14 +40,11 @@ class VehicleController extends Controller
         return new VehicleResource($vehicle->load(['category', 'openSession']));
     }
 
-    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, AuditLogger $audit): VehicleResource
+    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleService $vehicles): VehicleResource
     {
         $this->authorize('update', $vehicle);
-        $original = $vehicle->getAttributes();
-        $vehicle->update($request->validated());
-        $audit->logChanges('vehicle.updated', $vehicle, $original);
 
-        return new VehicleResource($vehicle->load('category'));
+        return new VehicleResource($vehicles->update($vehicle, $request->validated(), $request->user()));
     }
 
     /**

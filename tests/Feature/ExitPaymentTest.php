@@ -10,24 +10,17 @@ use App\Models\Receipt;
 use App\Models\Refund;
 use App\Models\User;
 use App\Services\SettingsService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
-use Illuminate\Testing\TestResponse;
 
 beforeEach(function () {
     seedParking();
     $this->staff = userWithRole(User::ROLE_STAFF);
 });
 
-function settle(string $payload, array $extra = []): TestResponse
-{
-    return test()->postJson('/api/v1/staff/exits/settle', array_merge([
-        'qr_payload' => $payload,
-        'idempotency_key' => (string) Str::uuid(),
-        'payment_method' => 'cash',
-    ], $extra));
-}
-
 it('previews the full calculation before payment', function () {
+    // Freeze the clock before entry so the 25-hour duration is exact.
+    $this->travelTo(CarbonImmutable::parse('2026-11-01 08:00:00', 'Asia/Colombo'));
     [, $payload] = recordEntry($this->staff);
     $this->travel(25)->hours();
 
@@ -85,6 +78,102 @@ it('is idempotent: repeating a settle request never charges twice', function () 
     expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1);
 });
 
+it('does not reopen the gate or notify again when an exit payment is retried', function () {
+    $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000033']);
+    [$session, $payload] = recordEntry($this->staff, ['customer_phone' => '0770000033']);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('status', 'completed');
+    expect($customer->notifications()->count())->toBe(1);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('replayed', true)
+        ->assertJsonPath('gate', null);
+
+    expect($customer->notifications()->count())->toBe(1)
+        ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $session->id)->count())->toBe(1);
+});
+
+it('rejects reuse of an exit idempotency key for another parking session', function () {
+    [$firstSession, $firstPayload] = recordEntry($this->staff);
+    [$secondSession, $secondPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($firstPayload, ['idempotency_key' => $key])->assertOk()
+        ->assertJsonPath('status', 'completed');
+
+    settle($secondPayload, ['idempotency_key' => $key])->assertStatus(409)
+        ->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $firstSession->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $secondSession->id)->count())->toBe(0)
+        ->and($secondSession->refresh()->status)->toBe(ParkingSession::ACTIVE)
+        ->and($secondSession->qrTicket->status)->toBe(QrTicket::ACTIVE)
+        ->and($secondSession->receipt)->toBeNull();
+});
+
+it('rejects an invalid QR when replaying an existing exit payment key', function () {
+    [$session, $payload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($payload, ['idempotency_key' => $key])->assertOk();
+    settle('SPT1-nothex', ['idempotency_key' => $key])->assertNotFound();
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and(Receipt::where('parking_session_id', $session->id)->count())->toBe(1);
+});
+
+it('rejects cross-session replay of a pending online payment', function () {
+    [$firstSession, $firstPayload] = recordEntry($this->staff);
+    [$secondSession, $secondPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($firstPayload, [
+        'idempotency_key' => $key,
+        'payment_method' => 'online',
+    ])->assertStatus(202)->assertJsonPath('status', 'payment_pending');
+
+    settle($secondPayload, ['idempotency_key' => $key])
+        ->assertStatus(409)
+        ->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $firstSession->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $firstSession->id)->value('status'))->toBe(Payment::PENDING)
+        ->and(Payment::where('parking_session_id', $secondSession->id)->count())->toBe(0)
+        ->and($secondSession->refresh()->status)->toBe(ParkingSession::ACTIVE)
+        ->and($secondSession->receipt)->toBeNull();
+});
+
+it('does not replay pending payments through a revoked QR after reissue', function () {
+    [$session, $oldPayload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $this->actingAs($this->staff);
+
+    settle($oldPayload, [
+        'idempotency_key' => $key,
+        'payment_method' => 'online',
+    ])->assertStatus(202)->assertJsonPath('status', 'payment_pending');
+
+    $newPayload = $this->postJson("/api/v1/staff/sessions/{$session->uuid}/ticket/reissue")
+        ->assertOk()->json('ticket.qr_payload');
+
+    settle($oldPayload, ['idempotency_key' => $key, 'payment_method' => 'online'])
+        ->assertStatus(409)->assertJsonPath('error_code', 'ticket_already_used');
+
+    // A genuine retry repeats the same payment details.
+    settle($newPayload, ['idempotency_key' => $key, 'payment_method' => 'online'])
+        ->assertStatus(202)->assertJsonPath('replayed', true);
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and($session->refresh()->status)->toBe(ParkingSession::ACTIVE);
+});
+
 it('rejects insufficient cash and keeps the session open', function () {
     [$session, $payload] = recordEntry($this->staff);
     $this->actingAs($this->staff);
@@ -136,7 +225,44 @@ it('keeps the session open when an online payment fails', function () {
     settle($payload)->assertOk()->assertJsonPath('status', 'completed');
 });
 
+it('rejects prepayment retries that change amount or payment method', function () {
+    [$session] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $url = "/api/v1/staff/sessions/{$session->uuid}/payments";
+    $input = ['idempotency_key' => $key, 'payment_method' => 'cash', 'amount_minor' => 900000];
+    $this->actingAs($this->staff);
+
+    $this->postJson($url, $input)->assertCreated();
+    $this->postJson($url, $input)->assertSuccessful();
+    $this->postJson($url, array_merge($input, ['amount_minor' => 800000]))
+        ->assertStatus(409)->assertJsonPath('error_code', 'idempotency_conflict');
+    $this->postJson($url, array_merge($input, ['payment_method' => 'card']))
+        ->assertStatus(409)->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and(Payment::where('parking_session_id', $session->id)->value('amount_minor'))->toBe(900000);
+});
+
+it('replays an existing prepayment after session closure without creating another charge', function () {
+    [$session, $payload] = recordEntry($this->staff);
+    $key = (string) Str::uuid();
+    $url = "/api/v1/staff/sessions/{$session->uuid}/payments";
+    $input = ['idempotency_key' => $key, 'payment_method' => 'cash', 'amount_minor' => 150000];
+    $this->actingAs($this->staff);
+
+    $this->postJson($url, $input)->assertCreated();
+    settle($payload, ['payment_method' => null])->assertOk();
+    $this->postJson($url, $input)->assertSuccessful();
+    $this->postJson($url, array_merge($input, ['amount_minor' => 100000]))
+        ->assertStatus(409)->assertJsonPath('error_code', 'idempotency_conflict');
+
+    expect(Payment::where('parking_session_id', $session->id)->count())->toBe(1)
+        ->and($session->refresh()->status)->toBe(ParkingSession::COMPLETED);
+});
+
 it('turns unused prepaid weekly time into customer credit on early exit', function () {
+    // Freeze the clock: a single elapsed second would otherwise start a third billing day.
+    $this->freezeSecond();
     $customer = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0770000002']);
     [$session, $payload] = recordEntry($this->staff, [
         'parking_zone_id' => zone('C')->id, 'parking_package_id' => package('weekly')->id, 'customer_phone' => '0770000002',

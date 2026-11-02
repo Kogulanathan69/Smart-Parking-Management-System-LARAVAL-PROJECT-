@@ -32,7 +32,7 @@ class EntryService
     /**
      * Staff-recorded vehicle entry (BRD §4). Returns the session and the printable QR payload.
      *
-     * @param  array{plate_number?: ?string, vehicle_category_id: int, parking_zone_id: int, parking_package_id: int, parking_slot_id?: ?int, customer_id?: ?int, customer_name?: ?string, customer_phone?: ?string, notes?: ?string, entry_source?: ?string}  $data
+     * @param  array{plate_number?: ?string, fuel_type?: ?string, vehicle_category_id: int, parking_zone_id: int, parking_package_id: int, parking_slot_id?: ?int, customer_id?: ?int, customer_name?: ?string, customer_phone?: ?string, notes?: ?string, entry_source?: ?string}  $data
      * @return array{0: ParkingSession, 1: string}
      */
     public function recordEntry(User $staff, array $data): array
@@ -91,7 +91,7 @@ class EntryService
     {
 
         return DB::transaction(function () use ($staff, $data, $category, $zone, $package, $rate, $safetyRate, $hasSafety, $customer, $plate, $now) {
-            $vehicle = $this->vehicles->findOrRegisterAtGate($plate, $category, $staff, null);
+            $vehicle = $this->vehicles->findOrRegisterAtGate($plate, $category, $staff, null, $data['fuel_type'] ?? null);
             Vehicle::whereKey($vehicle->id)->lockForUpdate()->first();
 
             if (ParkingSession::where('open_vehicle_key', $vehicle->id)->exists()) {
@@ -104,11 +104,14 @@ class EntryService
 
             $slot = $this->allocator->allocate($zone, $category->id, $data['parking_slot_id'] ?? null);
             $snapshot = $this->pricing->snapshot($package, $rate, $safetyRate);
+            $snapshot['vehicle'] = ['category' => $category->code, 'fuel_type' => $vehicle->fuel_type?->value];
 
             $session = ParkingSession::create([
                 'uuid' => (string) Str::uuid(),
                 'reference' => Reference::make('PS'),
                 'vehicle_id' => $vehicle->id,
+                'vehicle_category_id' => $category->id,
+                'fuel_type' => $vehicle->fuel_type,
                 'customer_id' => $customer?->id,
                 'customer_name' => $data['customer_name'] ?? $customer?->name,
                 'customer_phone' => $data['customer_phone'] ?? $customer?->phone,
@@ -136,7 +139,7 @@ class EntryService
             }
 
             $this->audit->log('session.entry_recorded', $session, [], [
-                'vehicle' => $vehicle->identifier, 'slot' => $slot->code, 'package' => $package->code, 'rate_version' => $rate->version,
+                'vehicle' => $vehicle->identifier, 'category' => $category->code, 'fuel_type' => $vehicle->fuel_type?->value, 'slot' => $slot->code, 'package' => $package->code, 'rate_version' => $rate->version,
             ]);
 
             return [$session, $payload];
