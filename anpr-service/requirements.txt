@@ -1,0 +1,13 @@
+# Runtime dependencies (pinned). Install offline from a wheelhouse — see README.md.
+fastapi==0.162.0
+starlette==1.10.0
+pydantic==2.14.2
+uvicorn==0.54.0
+python-multipart==0.0.33
+httpx==0.28.1
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+onnxruntime==1.31.1
+fast-plate-ocr==1.1.0
+open-image-models==0.6.0
+PyYAML==6.0.3

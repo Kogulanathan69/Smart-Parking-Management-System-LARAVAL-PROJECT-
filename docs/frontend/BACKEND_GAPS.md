@@ -1,0 +1,25 @@
+# Backend gaps found during the frontend audit
+
+Audit base: `feature/anpr-backend` @ `8c64ede`. Each gap shows how the frontend handles it. Backend additions are additive, authorised, validated, tested and documented in `docs/API.md`.
+
+| ID | Gap | Impact on UI | Resolution | Status |
+|---|---|---|---|---|
+| G-01 | Role dashboards (`/{role}/dashboard`) return JSON only | Browsers would see raw JSON after login | Content negotiation: JSON for `Accept: application/json` (existing contract and tests unchanged), Blade HTML page otherwise | **Done** — `DashboardController::respond`, tested in `FrontendPagesTest` |
+| G-02 | Fortify auth views (`auth.*`) do not exist (routes return 501) | No login page | Blade views for login, register (customer only), forgot/reset password, two-factor challenge, confirm password | **Done** (`resources/views/auth/*`). Email verification is disabled in Fortify, so no view is shipped for it |
+| G-03 | No customer-facing availability or price list | Customer "availability / package information" cannot be shown | Add read-only `GET /api/v1/customer/parking-info`: zone availability counts and current published rates for active packages. No slot codes or other customers' data | **Done** — `ParkingInfoController`, 3 tests in `FrontendSupportEndpointsTest`, documented in `docs/API.md` |
+| G-04 | Gate, payment, printer and ANPR driver modes are not exposed | UI cannot honestly label the gate as simulated or physical | Add read-only `GET /api/v1/admin/system/status` (admin, super_admin): driver names, ANPR engine availability, release-slot mode. No secrets or URLs | **Done** — `SystemStatusController`, tested (no token/URL leak), documented |
+| G-05 | No admin endpoint to edit another user's name or email, or to set their password | User directory cannot edit profiles | Not added (account-security decision for the client). Users change their own profile; password recovery uses "Forgot password" | Documented |
+| G-06 | Reservations cannot be created or cancelled by customers. They are created by staff at the first entry on a guaranteed package; admins cancel | Customer reservation screens are view-only | View-only customer screens explaining how reservations are made | Documented |
+| G-07 | No notification preferences endpoint | — | Not shown | Documented |
+| G-08 | `GET /staff/sessions/{uuid}/ticket` increments `print_count` (side effect on GET) | Opening a page must not count as a print | UI calls it only from an explicit **Print ticket** action | Handled in UI |
+| G-09 | Passkey (WebAuthn) routes have no UI | — | Deferred. Needs a WebAuthn client library and a hardware-key test plan | Deferred |
+| G-10 | Role permissions are fixed in code (route middleware), not configurable | A permission editor would be fake | Read-only role matrix page generated from the live route middleware | **Done** — `RoleMatrixController` (`/manage/roles`) |
+| G-11 | No server-side export (CSV/PDF) endpoints | — | Print-friendly report views, plus "Download CSV" of the rows already loaded for the signed-in user (no new data exposure) | **Done** (payments, sessions, audit trail, ANPR corrections, revenue by day) |
+| G-12 | No live camera video stream to the browser | Live capture cannot be shown | Check-in/out use a clearly labelled **Upload / Test capture** mode (`POST /staff/anpr/recognize`) and the pushed-reading queue | Handled in UI |
+| G-13 | Entry barrier is not driven by `GateService` (exit only) | — | Check-in shows "Gate: not controlled at entry" | Documented |
+| G-14 | No backup job or status endpoint | — | No backup screen (nothing to report) | Documented |
+| G-15 | The project owner's prohibited term is not named in the brief or the repository | Copy cannot be checked against it | Flagged in the final report; a repo-wide replacement can be done once the term is confirmed | Needs owner input |
+| G-16 | The detector score from the ANPR service was dropped; the UI must show OCR and detector confidence separately | Staff could not see detector confidence | Additive: optional `candidates[].detector_confidence` (device API + `HttpAnprEngine`) stored as `detector_confidence_bp` in the existing JSON column. Display only; it never affects `recognition_status`. No migration | **Done** — tests in `AnprTest`, `anpr-service/tests/test_agent.py`; documented in `docs/API.md` |
+| G-17 | Slot listing (`GET /admin/zones/{id}/slots`) is admin-only | Staff cannot pick a specific slot at Check-In | Slot is always auto-assigned by the server at Check-In (shown as such). Admins manage slots in Zones & slots | Documented |
+| G-18 | No customer search endpoint for staff | Check-In cannot pick a customer account from a list | Staff enter the customer's mobile number; the backend links a matching registered customer | Documented |
+| G-19 | Auditor `POST /api/v1/audit/findings` is a write | Brief says the auditor UI must be read-only | Kept, because it is the backend's audit feature and changes no operational record; clearly labelled. **Client decision:** remove it from the UI if auditors must have zero write actions | Needs client decision |

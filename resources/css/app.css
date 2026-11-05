@@ -1,0 +1,164 @@
+﻿@import 'tailwindcss';
+@import './customer-vehicles.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+@source '../../app/Support/**/*.php';
+
+/*
+| ParkFlow design tokens â€” Option 4 "Teal & Navy (Modern Enterprise)".
+| This is the ONLY place colours are defined. Pages use the semantic utilities below
+| (bg-canvas, text-ink, border-line, bg-brand, text-success-ink â€¦), never raw hex values.
+| Measured contrast: ink/canvas 13.7:1, ink-muted/surface 6.1:1, white/brand-strong 5.5:1, white/navy 13.1:1,
+| chips 6.4â€“7.7:1, focus ring (brand-strong) 5.5:1 on white. Bright teal (#14B8A6) is decorative only (2.5:1).
+*/
+@theme {
+    --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, 'SFMono-Regular', monospace;
+
+    /* brand */
+    --color-navy: #0d3448;
+    --color-navy-deep: #082b3b;
+    --color-navy-soft: #164a63;
+    --color-brand: #14b8a6;          /* bright teal: decorative accents, sidebar focus (not for text on white) */
+    --color-brand-strong: #0f766e;   /* teal for text/buttons on white (AA) */
+    --color-brand-stronger: #115e59;
+    --color-brand-soft: #ccfbf1;
+    --color-brand-faint: #f0fdfa;
+
+    /* neutrals */
+    --color-canvas: #f5f8fa;
+    --color-surface: #ffffff;
+    --color-ink: #102a43;
+    --color-ink-muted: #526477;
+    --color-ink-faint: #7b8a99;
+    --color-line: #dce6eb;
+    --color-line-strong: #c3d1d9;
+
+    /* semantic (each has bg / border / ink) */
+    --color-success: #ecfdf3;
+    --color-success-line: #a6e9c2;
+    --color-success-ink: #166534;
+    --color-warning: #fff8eb;
+    --color-warning-line: #f6d38b;
+    --color-warning-ink: #8a4b08;
+    --color-danger: #fef1f1;
+    --color-danger-line: #f5b5b5;
+    --color-danger-ink: #a61b1b;
+    --color-info: #eef5ff;
+    --color-info-line: #b9d3f7;
+    --color-info-ink: #1e4f9a;
+    --color-neutral: #f1f4f6;
+    --color-neutral-line: #d5dee4;
+    --color-neutral-ink: #3d4f60;
+
+    --radius-card: 0.75rem;
+    --shadow-card: 0 1px 2px rgb(16 42 67 / 0.06), 0 1px 3px rgb(16 42 67 / 0.05);
+    --shadow-pop: 0 10px 30px rgb(8 43 59 / 0.18);
+}
+
+/* Base building blocks (declared as utilities so components can @apply them). */
+@utility card { @apply bg-surface border border-line rounded-[var(--radius-card)] shadow-[var(--shadow-card)]; }
+@utility card-pad { @apply p-4 sm:p-5; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors min-h-10 select-none disabled:opacity-55 disabled:cursor-not-allowed whitespace-nowrap; }
+@utility input { @apply block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint min-h-10 focus:border-brand-strong focus:outline-none focus:ring-2 focus:ring-brand-strong/40 disabled:bg-neutral disabled:text-ink-muted; }
+@utility alert { @apply rounded-lg border px-4 py-3 text-sm; }
+@utility chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+    &::before { content: ''; @apply inline-block h-1.5 w-1.5 rounded-full bg-current; }
+}
+
+@layer base {
+    html { -webkit-text-size-adjust: 100%; }
+    body { @apply bg-canvas text-ink font-sans antialiased; }
+    :focus-visible { outline: 3px solid var(--color-brand-strong); outline-offset: 2px; border-radius: 4px; }
+    aside :focus-visible { outline-color: var(--color-brand); }
+    [x-cloak] { display: none !important; }
+    h1, h2, h3 { @apply text-ink; }
+    a { @apply text-brand-strong; }
+    a:hover { @apply text-brand-stronger; }
+    table { @apply w-full; }
+    /* Grid/flex children may shrink below their content (wide tables scroll inside .table-wrap instead of widening the page). */
+    .grid > *, .flex > * { min-width: 0; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+}
+
+@layer components {
+    /* layout */
+    .card-title { @apply text-base font-semibold text-ink; }
+    .section-title { @apply text-sm font-semibold uppercase tracking-wide text-ink-muted; }
+    .muted { @apply text-ink-muted; }
+    .page-title { @apply text-xl sm:text-2xl font-semibold text-ink; }
+
+    /* buttons */
+    .btn-primary { @apply btn bg-brand-strong text-white hover:bg-brand-stronger; }
+    .btn-primary:hover { color: #fff; }
+    .btn-secondary { @apply btn bg-surface text-ink border border-line-strong hover:bg-canvas; }
+    .btn-ghost { @apply btn text-brand-strong hover:bg-brand-faint; }
+    .btn-danger { @apply btn bg-danger-ink text-white hover:bg-[#8a1616]; }
+    .btn-danger:hover { color: #fff; }
+    .btn-lg { @apply px-5 py-3 text-base min-h-12; }
+    .btn-sm { @apply px-3 py-1.5 text-xs min-h-8; }
+
+    /* forms */
+    .label { @apply block text-sm font-medium text-ink mb-1; }
+    .hint { @apply text-xs text-ink-muted mt-1; }
+    .field-error { @apply text-xs text-danger-ink mt-1 font-medium; }
+    .input[aria-invalid='true'] { @apply border-danger-ink ring-1 ring-danger-ink/30; }
+    .input-plate { @apply input font-mono text-lg tracking-widest uppercase; }
+    .check { @apply h-4 w-4 rounded border-line-strong text-brand-strong focus:ring-brand; }
+
+    /* status chips â€” text label always present (colour is never the only signal) */
+    .chip-success { @apply chip bg-success border-success-line text-success-ink; }
+    .chip-warning { @apply chip bg-warning border-warning-line text-warning-ink; }
+    .chip-danger { @apply chip bg-danger border-danger-line text-danger-ink; }
+    .chip-info { @apply chip bg-info border-info-line text-info-ink; }
+    .chip-neutral { @apply chip bg-neutral border-neutral-line text-neutral-ink; }
+    .chip-brand { @apply chip bg-brand-faint border-brand-soft text-brand-stronger; }
+
+    /* alerts */
+    .alert-success { @apply alert bg-success border-success-line text-success-ink; }
+    .alert-warning { @apply alert bg-warning border-warning-line text-warning-ink; }
+    .alert-danger { @apply alert bg-danger border-danger-line text-danger-ink; }
+    .alert-info { @apply alert bg-info border-info-line text-info-ink; }
+
+    /* tables */
+    .table-wrap { @apply relative overflow-x-auto; } /* relative: keeps sr-only (absolute) labels inside the scroll box */
+    .tbl { @apply min-w-full text-sm; }
+    .tbl th { @apply text-left text-xs font-semibold uppercase tracking-wide text-ink-muted bg-canvas px-3 py-2 border-b border-line whitespace-nowrap; }
+    .tbl td { @apply px-3 py-2.5 border-b border-line align-top; }
+    .tbl tbody tr:hover { @apply bg-brand-faint/60; }
+    .tbl-num, .tbl th.tbl-num { @apply text-right tabular-nums; }
+
+    /* KPI */
+    .kpi { @apply card card-pad flex flex-col gap-1; }
+    .kpi-label { @apply text-xs font-semibold uppercase tracking-wide text-ink-muted; }
+    .kpi-value { @apply text-xl sm:text-2xl leading-tight font-semibold tabular-nums text-ink break-words; }
+
+    /* plate display */
+    .plate { @apply inline-block font-mono font-bold tracking-widest uppercase bg-[#fffbea] text-ink border-2 border-ink rounded px-2 py-0.5; }
+
+    /* sidebar */
+    .nav-link { @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white; }
+    .nav-link[aria-current='page'] { @apply bg-white/10 text-white shadow-[inset_3px_0_0_var(--color-brand)]; }
+    .nav-group { @apply px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/70; }
+
+    .skeleton { @apply animate-pulse rounded bg-line/70; }
+    .divider { @apply border-t border-line; }
+    .dl { @apply grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-4 gap-y-2 text-sm; }
+    .dl dt { @apply text-ink-muted; }
+    .dl dd { @apply text-ink font-medium break-words; }
+}
+
+@media print {
+    .no-print, aside, header[role='banner'] { display: none !important; }
+    body { background: #fff; }
+    .card { box-shadow: none; border-color: #999; }
+    .print-only { display: block !important; }
+}
+.print-only { display: none; }
+
+
+

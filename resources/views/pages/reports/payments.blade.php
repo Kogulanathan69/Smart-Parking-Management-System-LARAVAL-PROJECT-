@@ -1,0 +1,13 @@
+<x-layouts.app title="Payments ledger" wide>
+<div x-data="dataTable({ url: '/reports/payments', filters: { from: ParkFlow.fmt.todayLocal(-6), to: ParkFlow.fmt.todayLocal(), status: '' }, perPage: 50 })">
+    <x-page-header title="Payments ledger" subtitle="All payment records in the period, including pending, failed and refunded.">
+        @component('pages.reports._range')<div><label class="label" for="pl-s">Status</label><select id="pl-s" class="input" x-model="filters.status"><option value="">All</option><option value="paid">Settled</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></div>@endcomponent
+    </x-page-header>
+    <div class="card"><div class="flex justify-end px-4 pt-3 no-print"><button type="button" class="btn-ghost btn-sm" :disabled="!rows.length" @click="$fmt.downloadCsv(`payments-${filters.from}-${filters.to}-p${page}.csv`, ['Reference','Session ID','Method','Status','Amount (LKR)','Tendered','Change','External ref','Paid at','Created'], rows.map(p => [p.reference, p.session_id, p.method, p.status, (p.amount_minor/100).toFixed(2), p.tendered_minor != null ? (p.tendered_minor/100).toFixed(2) : '', p.change_minor != null ? (p.change_minor/100).toFixed(2) : '', p.external_reference, p.paid_at, p.created_at]))"><x-icon name="download" class="h-4 w-4"/>Download CSV (this page)</button></div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>Reference</th><th>Session</th><th>Method</th><th>Status</th><th class="tbl-num">Amount</th><th class="tbl-num">Tendered</th><th class="tbl-num">Change</th><th>External ref.</th><th>Paid at</th></tr></thead><tbody>
+            <x-list-states cols="9" empty="No payments in this period."/>
+            <template x-for="p in rows" :key="p.id"><tr><td class="font-mono text-xs" x-text="p.reference"></td><td x-text="`#${p.session_id}`"></td><td x-text="$fmt.titleCase(p.method)"></td><td><x-state kind="payment" value="p.status"/></td>
+                <td class="tbl-num" x-text="$fmt.money(p.amount_minor)"></td><td class="tbl-num" x-text="$fmt.money(p.tendered_minor)"></td><td class="tbl-num" x-text="$fmt.money(p.change_minor)"></td><td class="font-mono text-xs" x-text="p.external_reference || '—'"></td><td x-text="$fmt.dateTime(p.paid_at)"></td></tr></template>
+        </tbody></table></div><x-pager/></div>
+</div>
+</x-layouts.app>

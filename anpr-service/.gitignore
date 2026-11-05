@@ -1,0 +1,13 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+wheelhouse/
+spool/
+models/*
+!models/.gitkeep
+evaluation-report.json
+eval-images/
+*.log
