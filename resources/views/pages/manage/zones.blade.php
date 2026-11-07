@@ -4,6 +4,7 @@
     <x-page-header title="Zones & slots" subtitle="Zones group slots by parking type. Slot counts are set per vehicle category on each zone.">
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>New zone</button>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Configured zones</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.reduce((n,z) => n + (z.occupancy || []).reduce((a,o) => a + o.available, 0), 0)"></span><span class="kpi-label">Free spaces</span></div><div class="kpi"><span class="kpi-value" x-text="rows.reduce((n,z) => n + (z.occupancy || []).reduce((a,o) => a + o.total, 0), 0)"></span><span class="kpi-label">Total capacity</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Zone</th><th>Type</th><th>Vehicles</th><th class="tbl-num">Slots</th><th class="tbl-num">Free</th><th>Status</th></tr></thead><tbody>
         <x-list-states cols="6" empty="No zones yet."/>
         <template x-for="z in rows" :key="z.id"><tr>

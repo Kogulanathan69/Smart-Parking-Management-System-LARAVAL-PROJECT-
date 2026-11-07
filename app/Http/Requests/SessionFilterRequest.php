@@ -32,6 +32,7 @@ class SessionFilterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
             'vehicle_category_id' => ['nullable', 'integer', 'exists:vehicle_categories,id'],
             'vehicle_category' => ['nullable', 'string', 'exists:vehicle_categories,code'],
             'fuel_type' => ['nullable', Rule::enum(FuelType::class)],

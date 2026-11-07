@@ -10,6 +10,7 @@ use App\Http\Resources\ReceiptResource;
 use App\Models\CustomerCredit;
 use App\Models\ParkingSession;
 use App\Models\Receipt;
+use App\Models\Vehicle;
 use App\Services\BillPresenter;
 use App\Services\ExitService;
 use App\Support\SessionFilters;
@@ -24,10 +25,14 @@ class ParkingHistoryController extends Controller
      */
     public function sessions(SessionFilterRequest $request): AnonymousResourceCollection
     {
+        $filters = $request->validated();
+        if (isset($filters['vehicle_id'])) {
+            $this->authorize('view', Vehicle::findOrFail($filters['vehicle_id']));
+        }
         $query = $request->user()->parkingSessions()->with(['vehicle.category', 'vehicleCategory', 'zone', 'slot', 'package', 'receipt'])->getQuery();
 
         return ParkingSessionResource::collection(
-            SessionFilters::apply($query, $request->validated())->latest('entry_at')->orderByDesc('id')->paginate($request->integer('per_page', 20))->withQueryString()
+            SessionFilters::apply($query, $filters)->latest('entry_at')->orderByDesc('id')->paginate($request->integer('per_page', 20))->withQueryString()
         );
     }
 

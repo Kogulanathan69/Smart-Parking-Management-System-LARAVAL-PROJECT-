@@ -8,6 +8,7 @@
         <form class="flex items-end gap-2" @submit.prevent="load()"><div><label class="label" for="cal-m">Month</label><input id="cal-m" type="month" class="input" x-model="month"></div><button class="btn-primary">Show</button></form>
     </x-page-header>
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
+    <div class="alert-info mb-4" x-show="d">Select any day to inspect its server-calculated activity and revenue summary.</div>
     <div class="card overflow-hidden" x-show="d">
         <div class="hidden grid-cols-7 border-b border-line bg-canvas text-center text-xs font-semibold uppercase text-ink-muted md:grid"><template x-for="w in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']" :key="w"><div class="py-2" x-text="w"></div></template></div>
         <div class="grid grid-cols-1 md:grid-cols-7">

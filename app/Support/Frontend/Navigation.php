@@ -80,7 +80,6 @@ final class Navigation
                 ['Active parking', 'my.active', 'car', [User::ROLE_CUSTOMER]],
                 ['My vehicles', 'my.vehicles', 'list', [User::ROLE_CUSTOMER]],
                 ['Parking info & prices', 'my.parking-info', 'grid', [User::ROLE_CUSTOMER]],
-                ['Reservations', 'my.reservations', 'bookmark', [User::ROLE_CUSTOMER]],
                 ['History', 'my.history', 'clock', [User::ROLE_CUSTOMER]],
                 ['Receipts', 'my.receipts', 'receipt', [User::ROLE_CUSTOMER]],
                 ['Credit balance', 'my.credits', 'cash', [User::ROLE_CUSTOMER]],

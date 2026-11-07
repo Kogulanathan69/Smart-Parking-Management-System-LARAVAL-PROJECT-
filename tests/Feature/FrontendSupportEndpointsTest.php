@@ -14,8 +14,11 @@ it('gives customers availability counts and published prices, and nothing else',
 
     $r = $this->actingAs($customer)->getJson('/api/v1/customer/parking-info')->assertOk()
         ->assertJsonPath('data.currency', 'LKR')
-        ->assertJsonStructure(['data' => ['zones' => [['code', 'name', 'available', 'by_vehicle_category' => [['vehicle_category', 'available', 'total']]]],
-            'packages' => [['code', 'name', 'billing_mode', 'prices' => [['vehicle_category', 'price_minor', 'overtime_hourly_minor', 'grace_minutes']]]]]]);
+        ->assertJsonStructure(['data' => ['zones' => [['code', 'name', 'zone_type', 'available', 'by_vehicle_category' => [['vehicle_category', 'available', 'total']]]],
+            'packages' => [['code', 'name', 'billing_mode', 'duration_minutes', 'description', 'allowed_zone_types', 'prices' => [['vehicle_category', 'price_minor', 'overtime_hourly_minor', 'grace_minutes']]]]]]);
+
+    $shortTime = collect($r->json('data.packages'))->firstWhere('code', 'short_time');
+    expect($shortTime['allowed_zone_types'])->toContain('short_time', 'safety');
 
     $zoneB = collect($r->json('data.zones'))->firstWhere('code', 'B');
     $car = collect($zoneB['by_vehicle_category'])->firstWhere('vehicle_category', 'car');

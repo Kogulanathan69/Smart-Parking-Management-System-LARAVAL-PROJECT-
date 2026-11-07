@@ -2,6 +2,7 @@
 <div x-data="myShifts()">
     <x-page-header title="My shifts" subtitle="Start your shift when you arrive and end it when you leave. Times are recorded by the server."/>
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
+    <div class="summary-strip" x-show="!loading"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Published assignments</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(a => a.attendance?.check_in_at && !a.attendance?.check_out_at).length"></span><span class="kpi-label">Shift in progress</span></div></div>
     <div class="grid gap-3 md:grid-cols-2">
         <template x-for="a in rows" :key="a.id">
             <section class="card card-pad"><div class="flex items-start justify-between gap-2"><div><h2 class="card-title" x-text="a.shift?.name"></h2><p class="text-sm text-ink-muted" x-text="`${$fmt.date(a.shift_date)} · ${a.shift?.start_time}–${a.shift?.end_time}${a.is_gate_duty ? ' · gate duty' : ''}`"></p></div>

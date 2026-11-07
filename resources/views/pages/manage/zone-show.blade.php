@@ -4,7 +4,7 @@
     <template x-if="z"><div>
         <x-page-header title="Zone"><button type="button" class="btn-secondary" @click="startEdit()">Edit zone</button></x-page-header>
         <div class="grid gap-4 xl:grid-cols-3">
-            <section class="card card-pad"><div class="flex items-center justify-between"><h2 class="text-lg font-semibold" x-text="`Zone ${z.code}`"></h2><span :class="z.is_active ? 'chip-success' : 'chip-neutral'" x-text="z.is_active ? 'Active' : 'Inactive'"></span></div>
+            <section class="detail-hero"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="grid"/></span><h2 class="text-xl font-bold" x-text="`Zone ${z.code}`"></h2></div><span :class="z.is_active ? 'chip-success' : 'chip-neutral'" x-text="z.is_active ? 'Active' : 'Inactive'"></span></div>
                 <dl class="dl mt-3"><dt>Name</dt><dd x-text="z.name"></dd><dt>Type</dt><dd x-text="z.zone_type?.name"></dd><dt>Description</dt><dd x-text="z.description || '—'"></dd></dl></section>
             <section class="card xl:col-span-2"><h2 class="card-title px-4 pt-4">Capacity by vehicle category</h2>
                 <div class="table-wrap mt-2"><table class="tbl"><thead><tr><th>Category</th><th class="tbl-num">Available</th><th class="tbl-num">Occupied</th><th class="tbl-num">Reserved</th><th class="tbl-num">Out of service</th><th>Slots (capacity)</th></tr></thead><tbody>

@@ -7,6 +7,7 @@
     </x-page-header>
     <div class="alert-info mb-4">No camera hardware has been tested with this installation yet. Cameras show <em>Online</em> only when their agent sends heartbeats.</div>
     @include('pages.manage._token-once')
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Registered devices</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(c => c.is_enabled && c.status === 'online').length"></span><span class="kpi-label">Online cameras</span></div><div class="kpi"><span class="kpi-value" x-text="rows.filter(c => c.is_enabled).length"></span><span class="kpi-label">Enabled cameras</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Camera</th><th>Direction</th><th>Type</th><th>Stream host</th><th>Status</th><th>Last heartbeat</th><th>Last reading</th></tr></thead><tbody>
         <x-list-states cols="7" empty="No cameras registered. Staff can still use upload or manual identification."/>
         <template x-for="c in rows" :key="c.id"><tr><td><a :href="`/manage/cameras/${c.id}`" class="font-semibold" x-text="c.code"></a><span class="block text-xs text-ink-muted" x-text="c.name"></span></td>

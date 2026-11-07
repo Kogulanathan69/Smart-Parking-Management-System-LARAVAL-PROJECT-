@@ -124,7 +124,7 @@ it('prevents customers from reading other customers records (IDOR)', function ()
     $this->actingAs($intruder)->getJson("/api/v1/customer/vehicles/{$vehicle}")->assertForbidden();
     $this->actingAs($intruder)->deleteJson("/api/v1/customer/vehicles/{$vehicle}")->assertForbidden();
     $this->actingAs($intruder)->postJson('/api/v1/customer/vehicles', ['plate_number' => 'cab 1111', 'vehicle_category_id' => category('car')->id])
-        ->assertUnprocessable()->assertJsonPath('error_code', 'vehicle_unavailable');
+        ->assertStatus(409)->assertJsonPath('error_code', 'vehicle_already_registered');
 
     [$session] = recordEntry(userWithRole(User::ROLE_STAFF), ['plate_number' => 'CAB-1111']);
     expect($session->customer_id)->toBe($owner->id);

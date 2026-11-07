@@ -5,6 +5,7 @@
     <x-page-header title="Payment methods" subtitle="Methods staff can choose at Check-Out. No card or online payment gateway is connected: 'gateway' methods stay pending until staff confirm them.">
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>Add method</button>
     </x-page-header>
+    <div class="alert-info mb-4"><strong>Settlement configuration.</strong> These options control staff choices only; they do not connect a payment provider.</div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Code</th><th>Confirmation</th><th>Reference</th><th>Status</th><th></th></tr></thead><tbody>
         <x-list-states cols="6"/>
         <template x-for="m in rows" :key="m.id"><tr><td class="font-semibold" x-text="m.name"></td><td class="font-mono text-xs" x-text="m.code"></td>

@@ -6,6 +6,7 @@
     <x-page-header title="Penalty types" subtitle="Penalties are applied by staff with a reason, never automatically. Changing an amount does not affect penalties already applied.">
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>New penalty type</button>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Penalty types</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(t => t.is_active).length"></span><span class="kpi-label">Available to staff</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Code</th><th class="tbl-num">Amount</th><th>Description</th><th>Status</th><th></th></tr></thead><tbody>
         <x-list-states cols="6"/>
         <template x-for="t in rows" :key="t.id"><tr><td class="font-semibold" x-text="t.name"></td><td class="font-mono text-xs" x-text="t.code"></td><td class="tbl-num" x-text="$fmt.money(t.amount_minor)"></td><td class="text-sm text-ink-muted" x-text="t.description || '—'"></td>

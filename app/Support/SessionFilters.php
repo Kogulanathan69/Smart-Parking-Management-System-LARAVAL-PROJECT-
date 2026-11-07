@@ -46,6 +46,7 @@ final class SessionFilters
         $plate = $filters['plate'] ?? $filters['q'] ?? null;
 
         $query
+            ->when($filters['vehicle_id'] ?? null, fn ($q, $id) => $q->where('parking_sessions.vehicle_id', $id))
             ->when($categoryId, fn ($q, $id) => $q->where('parking_sessions.vehicle_category_id', $id))
             ->when($filters['fuel_type'] ?? null, fn ($q, $fuel) => $q->where('parking_sessions.fuel_type', $fuel))
             ->when($filters['status'] ?? null, fn ($q, $statuses) => $q->whereIn('parking_sessions.status', (array) $statuses))

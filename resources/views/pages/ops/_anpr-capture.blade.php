@@ -1,8 +1,9 @@
 {{-- Step 1: capture source. Shared by Check-In and Check-Out ($dir = entry|exit). --}}
 <section x-show="step === 'capture'" class="card" aria-labelledby="cap-h">
-    <div class="border-b border-line px-4 pt-4 sm:px-5">
-        <h2 id="cap-h" class="card-title">Identify the vehicle</h2>
+    <div class="border-b border-line bg-gradient-to-r from-brand-faint to-surface px-4 pt-4 sm:px-5">
+        <div class="flex items-start gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-strong text-white shadow-sm"><x-icon name="camera" class="h-6 w-6"/></span><div><h2 id="cap-h" class="card-title">Identify the vehicle</h2>
         <p class="mt-1 text-sm text-ink-muted">No live video is shown: real cameras send readings through the camera agent. Use a test photo or type the plate if no reading arrives.</p>
+        </div></div>
         <div class="mt-4 flex gap-1 overflow-x-auto" role="tablist" aria-label="How to identify the vehicle">
             @foreach (['upload' => 'Upload / Test capture', 'camera' => 'Camera readings', 'manual' => 'Type plate manually'] + ($dir === 'exit' ? ['ticket' => 'Scan internal ticket'] : []) as $m => $label)
                 <button type="button" role="tab" class="whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold" :aria-selected="(mode === '{{ $m }}').toString()"
@@ -29,7 +30,7 @@
                 <p class="text-xs text-ink-muted" x-text="progress < 100 ? `Uploading… ${progress}%` : 'Recognising the plate on this PC…'"></p></div>
             <button type="button" class="btn-primary btn-lg w-full sm:w-auto" @click="upload()" :disabled="!file || busy"><x-icon name="upload" class="h-5 w-5"/>Recognise plate</button>
         </div>
-        <div class="grid min-h-48 place-items-center rounded-lg border border-dashed border-line-strong bg-canvas p-2">
+        <div class="grid min-h-56 place-items-center rounded-xl border-2 border-dashed border-brand-soft bg-brand-faint/40 p-3">
             <template x-if="preview"><img :src="preview" alt="Selected photo preview" class="max-h-72 rounded object-contain"></template>
             <p x-show="!preview" class="text-sm text-ink-muted">Photo preview</p>
         </div>

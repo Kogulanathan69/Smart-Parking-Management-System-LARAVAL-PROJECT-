@@ -10,9 +10,9 @@
         </x-page-header>
         <div class="no-print grid gap-4 lg:grid-cols-3">
             <div class="space-y-4 lg:col-span-2">
-                <section class="card card-pad">
+                <section class="detail-hero">
                     <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div><p class="text-sm text-ink-muted">Reference</p><p class="text-xl font-semibold" x-text="s.reference"></p></div>
+                        <div><p class="text-sm text-ink-muted">Session reference</p><p class="text-2xl font-bold tracking-tight" x-text="s.reference"></p></div>
                         <div class="flex flex-wrap items-center gap-2"><span class="plate text-lg" x-text="s.vehicle?.plate_number || s.vehicle?.identifier"></span><x-state kind="session" value="s.status"/></div>
                     </div>
                     <dl class="dl mt-4 sm:grid-cols-[9rem_1fr_9rem_1fr]">

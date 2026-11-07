@@ -2,7 +2,8 @@
 <div x-data="incidentForm()">
     <x-page-header title="Report an incident" subtitle="Damage, theft, accidents or anything that needs follow-up. Admins are notified."/>
     <template x-if="done"><div class="alert-success mb-4" role="status">Incident <strong x-text="done.reference"></strong> reported. <a href="{{ route('ops.incidents.create') }}">Report another</a></div></template>
-    <form class="card card-pad grid max-w-3xl gap-4 sm:grid-cols-2" @submit.prevent="submit()" x-show="!done">
+    <form class="card card-pad grid max-w-3xl gap-4 border-warning-line sm:grid-cols-2" @submit.prevent="submit()" x-show="!done">
+        <div class="flex items-center gap-3 border-b border-line pb-4 sm:col-span-2"><span class="grid h-11 w-11 place-items-center rounded-xl bg-warning text-warning-ink"><x-icon name="alert"/></span><div><h2 class="card-title">Incident details</h2><p class="text-sm text-ink-muted">Describe only what was observed. Evidence remains private.</p></div></div>
         <div><label class="label" for="ic-t">Type</label><select id="ic-t" class="input" x-model="data.type"><option value="damage">Damage</option><option value="theft">Theft</option><option value="accident">Accident</option><option value="other">Other</option></select></div>
         <div><label class="label" for="ic-s">Severity</label><select id="ic-s" class="input" x-model="data.severity"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
         <div class="sm:col-span-2"><label class="label" for="ic-sess">Session ID (optional)</label><input id="ic-sess" class="input font-mono text-xs" x-model="data.parking_session_uuid" placeholder="Filled in when opened from a session">

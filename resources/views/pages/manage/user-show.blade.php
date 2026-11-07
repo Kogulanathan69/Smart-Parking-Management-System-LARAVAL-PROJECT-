@@ -6,7 +6,7 @@
             <button type="button" class="btn-secondary" x-show="!isSelf" @click="status = { open: true, value: u.status, reason: '' }">Change status</button>
             <button type="button" class="btn-secondary" x-show="!isSelf && $store.app.can('super_admin') && !['customer','super_admin'].includes(u.role)" @click="role = { open: true, value: u.role }">Change role</button>
         </x-page-header>
-        <section class="card card-pad max-w-2xl"><div class="flex items-center justify-between gap-2"><h2 class="text-lg font-semibold" x-text="u.name"></h2><x-state kind="user" value="u.status"/></div>
+        <section class="detail-hero max-w-2xl"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="user"/></span><h2 class="text-xl font-bold" x-text="u.name"></h2></div><x-state kind="user" value="u.status"/></div>
             <dl class="dl mt-4"><dt>Email</dt><dd x-text="u.email"></dd><dt>Mobile</dt><dd x-text="u.phone || '—'"></dd><dt>Role</dt><dd x-text="$fmt.roleLabel(u.role)"></dd>
                 <dt>Status reason</dt><dd x-text="u.status_reason || '—'"></dd><dt>Two-step</dt><dd x-text="u.two_factor_enabled ? 'On' : 'Off'"></dd>
                 <dt>Last sign-in</dt><dd x-text="$fmt.dateTime(u.last_login_at, 'Never')"></dd><dt>Created</dt><dd x-text="$fmt.dateTime(u.created_at)"></dd></dl>

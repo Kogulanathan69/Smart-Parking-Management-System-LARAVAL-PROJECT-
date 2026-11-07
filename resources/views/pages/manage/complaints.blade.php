@@ -5,6 +5,7 @@
     <x-page-header title="Customer support" subtitle="Requests customers send from their account. Customers are notified in-app when the status changes.">
         <div><label class="sr-only" for="cp-s">Status</label><select id="cp-s" class="input" x-model="filters.status" @change="search()"><option value="">All</option><option value="open">Open</option><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="total || rows.length"></span><span class="kpi-label">Support requests</span></div><div class="kpi"><span class="kpi-value text-warning-ink" x-text="rows.filter(c => ['open','in_review'].includes(c.status)).length"></span><span class="kpi-label">Open on this page</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Reference</th><th>Subject</th><th>Status</th><th>Received</th><th></th></tr></thead><tbody>
         <x-list-states cols="5" empty="No requests."/>
         <template x-for="c in rows" :key="c.id"><tr><td class="font-mono text-xs" x-text="c.reference"></td><td><span class="font-semibold" x-text="c.subject"></span><span class="block max-w-xl text-sm text-ink-muted" x-text="c.description"></span></td>

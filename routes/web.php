@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\RoleMatrixController;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -115,6 +116,11 @@ Route::middleware(['auth', 'role:super_admin,auditor'])->prefix('audit')->name('
 Route::middleware(['auth', 'role:customer'])->prefix('my')->name('my.')->group(function () use ($page, $uuid) {
     $page('/parking', 'my.active', 'active');
     $page('/vehicles', 'my.vehicles', 'vehicles');
+    Route::get('/vehicles/{vehicle}', function (Vehicle $vehicle) {
+        abort_unless(request()->user()->can('view', $vehicle), 403);
+
+        return view('pages.my.vehicle-show', ['id' => $vehicle->id]);
+    })->name('vehicles.show')->whereNumber('vehicle');
     $page('/parking-info', 'my.parking-info', 'parking-info');
     $page('/reservations', 'my.reservations', 'reservations');
     $page('/reservations/{id}', 'my.reservation-show', 'reservations.show')->whereNumber('id');

@@ -7,6 +7,7 @@
             <button type="button" :class="c.is_enabled ? 'btn-secondary' : 'btn-primary'" @click="toggle()" :disabled="busy" x-text="c.is_enabled ? 'Disable' : 'Enable'"></button>
             <button type="button" class="btn-danger" @click="rotate()" :disabled="busy">Rotate token</button>
         </x-page-header>
+        <div class="alert-info mb-4"><strong>Device security.</strong> Stream credentials remain encrypted and device tokens are shown only when rotated.</div>
         <template x-if="token"><div class="alert-warning mb-4" role="alert"><p class="font-semibold">New device token — shown only once</p>
             <div class="mt-2 flex flex-col gap-2 sm:flex-row"><input class="input font-mono text-xs" :value="token" readonly @focus="$event.target.select()" aria-label="New device token"><button type="button" class="btn-secondary" @click="navigator.clipboard?.writeText(token).then(() => ParkFlow.toast('Copied.'))">Copy</button><button type="button" class="btn-primary" @click="token = null">I have stored it</button></div></div></template>
         <div class="grid gap-4 lg:grid-cols-2">

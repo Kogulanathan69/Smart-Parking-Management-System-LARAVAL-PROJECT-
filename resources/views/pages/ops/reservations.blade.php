@@ -1,7 +1,9 @@
 <x-layouts.app title="Reservations" wide>
 <div x-data="dataTable({ url: '/staff/reservations', filters: { status: 'active', plate: '', expiring_within: '' } })">
     <x-page-header title="Guaranteed parking (reservations)" subtitle="Weekly and monthly packages hold a dedicated slot. Reservations are created at the vehicle's first Check-In on a guaranteed package."/>
+    <div class="alert-info mb-4"><strong>Internal operational records.</strong> Staff create these only through an eligible Check-In workflow; customers cannot reserve spaces online.</div>
     <form class="card mb-4 grid gap-3 p-4 sm:grid-cols-4" @submit.prevent="search()">
+        <div class="filter-heading"><span class="filter-heading-icon"><x-icon name="bookmark"/></span><div><h2 class="card-title">Reservation filters</h2><p class="text-xs text-ink-muted">Find guaranteed-package records by plate, status or expiry.</p></div></div>
         <div><label class="label" for="r-p">Plate</label><input id="r-p" class="input" x-model="filters.plate" maxlength="30"></div>
         <div><label class="label" for="r-s">Status</label><select id="r-s" class="input" x-model="filters.status"><option value="">All</option><option value="active">Active</option><option value="expired">Expired</option><option value="cancelled">Cancelled</option></select></div>
         <div><label class="label" for="r-e">Expiring within</label><select id="r-e" class="input" x-model="filters.expiring_within"><option value="">Any time</option><option value="1440">1 day</option><option value="4320">3 days</option><option value="10080">7 days</option></select></div>

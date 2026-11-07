@@ -3,6 +3,7 @@
     <x-page-header title="Refunds" subtitle="Refunds come from overpayments, early exits and cancelled reservations. Approve, reject, then mark paid once the money has actually been returned.">
         <div><label class="sr-only" for="rf-s">Status</label><select id="rf-s" class="input" x-model="filters.status" @change="search()"><option value="">All</option><option value="pending">Pending approval</option><option value="approved">Approved — to pay</option><option value="paid">Paid out</option><option value="rejected">Rejected</option></select></div>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="total || rows.length"></span><span class="kpi-label">Matching refunds</span></div><div class="kpi"><span class="kpi-value" x-text="$fmt.money(rows.reduce((n,r) => n + Number(r.amount_minor || 0), 0))"></span><span class="kpi-label">Amount on this page</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Reference</th><th>Session</th><th class="tbl-num">Amount</th><th>Reason</th><th>Status</th><th>Requested</th><th></th></tr></thead><tbody>
         <x-list-states cols="7" empty="No refunds in this status."/>
         <template x-for="r in rows" :key="r.id"><tr><td class="font-mono text-xs" x-text="r.reference"></td><td x-text="r.session_id ? `#${r.session_id}` : '—'"></td><td class="tbl-num font-semibold" x-text="$fmt.money(r.amount_minor)"></td><td class="text-sm" x-text="r.reason || '—'"></td>

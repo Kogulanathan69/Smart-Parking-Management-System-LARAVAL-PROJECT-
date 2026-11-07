@@ -1,7 +1,7 @@
 {{-- Printable receipt. Expects `rc` (ReceiptResource) in scope. --}}
 <article class="card card-pad print:border-0" aria-label="Receipt">
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
-        <div><p class="text-lg font-semibold">ParkFlow parking receipt</p><p class="text-sm text-ink-muted" x-text="`Receipt ${rc?.number}`"></p></div>
+    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
+        <div class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-full bg-brand-strong text-lg font-black text-white">P</span><div><p class="text-lg font-bold">ParkFlow parking receipt</p><p class="font-mono text-sm text-ink-muted" x-text="`Receipt ${rc?.number}`"></p></div></div>
         <div class="text-right text-sm"><p x-text="$fmt.dateTime(rc?.issued_at)"></p><p class="text-ink-muted">Sri Lanka time</p></div>
     </header>
     <dl class="dl mt-3">

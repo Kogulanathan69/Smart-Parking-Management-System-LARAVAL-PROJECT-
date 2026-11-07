@@ -4,7 +4,7 @@
     <template x-if="p"><div>
         <x-page-header title="Package"><button type="button" class="btn-secondary" @click="startEdit()">Edit package</button><button type="button" class="btn-primary" @click="openRate()">Publish rate</button></x-page-header>
         <div class="grid gap-4 xl:grid-cols-3">
-            <section class="card card-pad"><div class="flex items-center justify-between"><h2 class="text-lg font-semibold" x-text="p.name"></h2><span :class="p.is_active ? 'chip-success' : 'chip-neutral'" x-text="p.is_active ? 'Active' : 'Inactive'"></span></div>
+            <section class="detail-hero"><div class="flex items-center justify-between"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="cash"/></span><h2 class="text-xl font-bold" x-text="p.name"></h2></div><span :class="p.is_active ? 'chip-success' : 'chip-neutral'" x-text="p.is_active ? 'Active' : 'Inactive'"></span></div>
                 <dl class="dl mt-3"><dt>Code</dt><dd class="font-mono" x-text="p.code"></dd><dt>Billing</dt><dd x-text="$fmt.titleCase(p.billing_mode)"></dd><dt>Duration</dt><dd x-text="p.duration_minutes ? $fmt.minutes(p.duration_minutes) : '—'"></dd>
                     <dt>Zone types</dt><dd x-text="(p.zone_types || []).map($fmt.titleCase).join(', ') || '—'"></dd><dt>Guaranteed slot</dt><dd x-text="p.guarantees_slot ? 'Yes' : 'No'"></dd><dt>Early-exit credit</dt><dd x-text="p.allows_early_exit_credit ? 'Yes' : 'No'"></dd><dt>Description</dt><dd x-text="p.description || '—'"></dd></dl></section>
             <section class="card xl:col-span-2"><h2 class="card-title px-4 pt-4">Rate history (all versions)</h2>

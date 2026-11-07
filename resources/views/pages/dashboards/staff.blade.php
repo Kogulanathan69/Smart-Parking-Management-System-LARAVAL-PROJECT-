@@ -16,10 +16,10 @@
     </div>
 
     <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <x-kpi label="Vehicles parked" value="d.active_sessions" href="{{ route('ops.sessions') }}"/>
-        <x-kpi label="Free slots" value="free" hint="Across all active zones"/>
-        <x-kpi label="ANPR review required" value="pendingReviews ?? '…'" href="{{ route('ops.anpr.queue') }}"/>
-        <x-kpi label="Safety checks due" value="d.due_inspections" hint="Within the next hour" href="{{ route('ops.inspections') }}"/>
+        <x-kpi label="Vehicles parked" value="d.active_sessions" icon="car" href="{{ route('ops.sessions') }}"/>
+        <x-kpi label="Free slots" value="free" icon="grid" hint="Across all active zones"/>
+        <x-kpi label="ANPR review required" value="pendingReviews ?? '…'" icon="camera" href="{{ route('ops.anpr.queue') }}"/>
+        <x-kpi label="Safety checks due" value="d.due_inspections" icon="shield" hint="Within the next hour" href="{{ route('ops.inspections') }}"/>
     </div>
 
     <div class="mt-4 grid gap-4 xl:grid-cols-3">

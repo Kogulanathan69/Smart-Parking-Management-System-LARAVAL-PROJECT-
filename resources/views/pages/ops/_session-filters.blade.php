@@ -1,4 +1,5 @@
 <form class="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8" @submit.prevent="search()" x-data="{ ref: null }" x-init="ref = await $store.app.reference()">
+    <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-4 xl:col-span-8"><span class="grid h-9 w-9 place-items-center rounded-lg bg-brand-faint text-brand-strong"><x-icon name="search" class="h-5 w-5"/></span><div><h2 class="card-title">Search and filter</h2><p class="text-xs text-ink-muted">Find operational records without changing their state.</p></div></div>
     <div class="sm:col-span-2"><label class="label" for="sf-q">Plate or reference</label><input id="sf-q" class="input" x-model="filters.{{ $qKey ?? 'q' }}" placeholder="e.g. CAB-1234" maxlength="30"></div>
     <div><label class="label" for="sf-s">Status</label><select id="sf-s" class="input" x-model="filters.status">
         <option value="">{{ $defaultStatusLabel ?? 'Open (parked)' }}</option><option value="active">Parked</option><option value="exit_authorized">Gate Authorized</option><option value="completed">Checked out</option><option value="cancelled">Cancelled</option></select></div>

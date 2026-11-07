@@ -4,6 +4,7 @@
     <x-page-header title="Audit findings" subtitle="Observations recorded by auditors. Recording a finding never changes parking, payment or gate records.">
         <button type="button" class="btn-primary" x-show="$store.app.can('auditor')" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>Record finding</button>
     </x-page-header>
+    <div class="alert-info mb-4"><strong>Audit note boundary.</strong> Findings document observations only and never mutate operational records.</div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>When</th><th>Severity</th><th>Finding</th><th>Subject</th></tr></thead><tbody>
         <x-list-states cols="4" empty="No findings recorded."/>
         <template x-for="f2 in rows" :key="f2.id"><tr><td class="whitespace-nowrap" x-text="$fmt.dateTime(f2.created_at)"></td><td><x-state kind="severity" value="f2.severity"/></td>

@@ -8,7 +8,6 @@ use App\Http\Requests\UpdateVehicleRequest;
 use App\Http\Requests\VehicleFilterRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Vehicle;
-use App\Services\AuditLogger;
 use App\Services\VehicleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -50,11 +49,10 @@ class VehicleController extends Controller
     /**
      * Unlinks the vehicle from the account; history is kept.
      */
-    public function destroy(Vehicle $vehicle, AuditLogger $audit): JsonResponse
+    public function destroy(Vehicle $vehicle, VehicleService $vehicles): JsonResponse
     {
         $this->authorize('delete', $vehicle);
-        $vehicle->forceFill(['owner_id' => null])->save();
-        $audit->log('vehicle.unlinked', $vehicle);
+        $vehicles->unlinkForCustomer($vehicle, request()->user());
 
         return response()->json(null, 204);
     }

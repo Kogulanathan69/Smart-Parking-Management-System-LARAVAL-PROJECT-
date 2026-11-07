@@ -19,23 +19,23 @@
     --font-mono: 'Cascadia Mono', 'Consolas', ui-monospace, 'SFMono-Regular', monospace;
 
     /* brand */
-    --color-navy: #0d3448;
-    --color-navy-deep: #082b3b;
-    --color-navy-soft: #164a63;
-    --color-brand: #14b8a6;          /* bright teal: decorative accents, sidebar focus (not for text on white) */
-    --color-brand-strong: #0f766e;   /* teal for text/buttons on white (AA) */
-    --color-brand-stronger: #115e59;
-    --color-brand-soft: #ccfbf1;
-    --color-brand-faint: #f0fdfa;
+    --color-navy: #064e3b;
+    --color-navy-deep: #022c22;
+    --color-navy-soft: #065f46;
+    --color-brand: #22c55e;
+    --color-brand-strong: #087f46;
+    --color-brand-stronger: #066638;
+    --color-brand-soft: #bbf7d0;
+    --color-brand-faint: #ecfdf5;
 
     /* neutrals */
-    --color-canvas: #f5f8fa;
+    --color-canvas: #f8faf9;
     --color-surface: #ffffff;
-    --color-ink: #102a43;
-    --color-ink-muted: #526477;
-    --color-ink-faint: #7b8a99;
-    --color-line: #dce6eb;
-    --color-line-strong: #c3d1d9;
+    --color-ink: #102a23;
+    --color-ink-muted: #64748b;
+    --color-ink-faint: #94a3b8;
+    --color-line: #e2e8e5;
+    --color-line-strong: #cbd8d2;
 
     /* semantic (each has bg / border / ink) */
     --color-success: #ecfdf3;
@@ -47,23 +47,23 @@
     --color-danger: #fef1f1;
     --color-danger-line: #f5b5b5;
     --color-danger-ink: #a61b1b;
-    --color-info: #eef5ff;
-    --color-info-line: #b9d3f7;
-    --color-info-ink: #1e4f9a;
-    --color-neutral: #f1f4f6;
-    --color-neutral-line: #d5dee4;
-    --color-neutral-ink: #3d4f60;
+    --color-info: #ecfdf5;
+    --color-info-line: #a7f3d0;
+    --color-info-ink: #047857;
+    --color-neutral: #f1f5f3;
+    --color-neutral-line: #d9e2de;
+    --color-neutral-ink: #475569;
 
-    --radius-card: 0.75rem;
-    --shadow-card: 0 1px 2px rgb(16 42 67 / 0.06), 0 1px 3px rgb(16 42 67 / 0.05);
-    --shadow-pop: 0 10px 30px rgb(8 43 59 / 0.18);
+    --radius-card: 0.875rem;
+    --shadow-card: 0 1px 2px rgb(16 42 35 / 0.04), 0 5px 18px rgb(16 42 35 / 0.045);
+    --shadow-pop: 0 18px 50px rgb(2 44 34 / 0.18);
 }
 
 /* Base building blocks (declared as utilities so components can @apply them). */
 @utility card { @apply bg-surface border border-line rounded-[var(--radius-card)] shadow-[var(--shadow-card)]; }
-@utility card-pad { @apply p-4 sm:p-5; }
-@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors min-h-10 select-none disabled:opacity-55 disabled:cursor-not-allowed whitespace-nowrap; }
-@utility input { @apply block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint min-h-10 focus:border-brand-strong focus:outline-none focus:ring-2 focus:ring-brand-strong/40 disabled:bg-neutral disabled:text-ink-muted; }
+@utility card-pad { @apply p-4 sm:p-5 lg:p-6; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 min-h-10 select-none disabled:opacity-55 disabled:cursor-not-allowed whitespace-nowrap; }
+@utility input { @apply block w-full rounded-lg border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint min-h-11 shadow-sm focus:border-brand-strong focus:outline-none focus:ring-3 focus:ring-brand-strong/15 disabled:bg-neutral disabled:text-ink-muted; }
 @utility alert { @apply rounded-lg border px-4 py-3 text-sm; }
 @utility chip {
     @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
@@ -87,15 +87,15 @@
 
 @layer components {
     /* layout */
-    .card-title { @apply text-base font-semibold text-ink; }
+    .card-title { @apply text-base font-bold tracking-tight text-ink; }
     .section-title { @apply text-sm font-semibold uppercase tracking-wide text-ink-muted; }
     .muted { @apply text-ink-muted; }
-    .page-title { @apply text-xl sm:text-2xl font-semibold text-ink; }
+    .page-title { @apply text-2xl sm:text-[1.75rem] font-bold tracking-tight text-ink; }
 
     /* buttons */
-    .btn-primary { @apply btn bg-brand-strong text-white hover:bg-brand-stronger; }
+    .btn-primary { @apply btn bg-brand-strong text-white shadow-sm hover:bg-brand-stronger hover:-translate-y-px hover:shadow-md; }
     .btn-primary:hover { color: #fff; }
-    .btn-secondary { @apply btn bg-surface text-ink border border-line-strong hover:bg-canvas; }
+    .btn-secondary { @apply btn bg-surface text-ink border border-line-strong shadow-sm hover:border-brand-soft hover:bg-brand-faint hover:text-brand-stronger; }
     .btn-ghost { @apply btn text-brand-strong hover:bg-brand-faint; }
     .btn-danger { @apply btn bg-danger-ink text-white hover:bg-[#8a1616]; }
     .btn-danger:hover { color: #fff; }
@@ -103,7 +103,7 @@
     .btn-sm { @apply px-3 py-1.5 text-xs min-h-8; }
 
     /* forms */
-    .label { @apply block text-sm font-medium text-ink mb-1; }
+    .label { @apply block text-sm font-semibold text-ink mb-1.5; }
     .hint { @apply text-xs text-ink-muted mt-1; }
     .field-error { @apply text-xs text-danger-ink mt-1 font-medium; }
     .input[aria-invalid='true'] { @apply border-danger-ink ring-1 ring-danger-ink/30; }
@@ -127,29 +127,33 @@
     /* tables */
     .table-wrap { @apply relative overflow-x-auto; } /* relative: keeps sr-only (absolute) labels inside the scroll box */
     .tbl { @apply min-w-full text-sm; }
-    .tbl th { @apply text-left text-xs font-semibold uppercase tracking-wide text-ink-muted bg-canvas px-3 py-2 border-b border-line whitespace-nowrap; }
-    .tbl td { @apply px-3 py-2.5 border-b border-line align-top; }
+    .tbl th { @apply text-left text-xs font-bold tracking-wide text-ink bg-brand-faint px-4 py-3 border-b border-line whitespace-nowrap; }
+    .tbl td { @apply px-4 py-3 border-b border-line align-top; }
     .tbl tbody tr:hover { @apply bg-brand-faint/60; }
     .tbl-num, .tbl th.tbl-num { @apply text-right tabular-nums; }
 
     /* KPI */
-    .kpi { @apply card card-pad flex flex-col gap-1; }
-    .kpi-label { @apply text-xs font-semibold uppercase tracking-wide text-ink-muted; }
-    .kpi-value { @apply text-xl sm:text-2xl leading-tight font-semibold tabular-nums text-ink break-words; }
+    .kpi { @apply card card-pad flex flex-col gap-1 transition-all hover:border-brand-soft hover:shadow-md; }
+    .kpi-label { @apply text-sm font-medium text-ink-muted; }
+    .kpi-value { @apply text-2xl sm:text-[1.75rem] leading-tight font-bold tabular-nums text-ink break-words; }
 
     /* plate display */
     .plate { @apply inline-block font-mono font-bold tracking-widest uppercase bg-[#fffbea] text-ink border-2 border-ink rounded px-2 py-0.5; }
 
     /* sidebar */
-    .nav-link { @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white; }
-    .nav-link[aria-current='page'] { @apply bg-white/10 text-white shadow-[inset_3px_0_0_var(--color-brand)]; }
-    .nav-group { @apply px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/70; }
+    .nav-link { @apply flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-white/80 transition-all hover:bg-white/10 hover:text-white; }
+    .nav-link[aria-current='page'] { @apply bg-brand-strong text-white shadow-[0_5px_16px_rgb(8_127_70/0.3)]; }
+    .nav-group { @apply px-3.5 pt-5 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/50; }
 
     .skeleton { @apply animate-pulse rounded bg-line/70; }
     .divider { @apply border-t border-line; }
     .dl { @apply grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-4 gap-y-2 text-sm; }
     .dl dt { @apply text-ink-muted; }
     .dl dd { @apply text-ink font-medium break-words; }
+    .detail-hero { @apply card card-pad bg-gradient-to-br from-surface to-brand-faint/60 border-brand-soft; }
+    .filter-heading { @apply flex items-center gap-2 sm:col-span-full; }
+    .filter-heading-icon { @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-faint text-brand-strong; }
+    .summary-strip { @apply mb-4 grid gap-3 grid-cols-2 lg:grid-cols-4; }
 }
 
 @media print {

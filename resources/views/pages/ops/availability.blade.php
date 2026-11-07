@@ -6,9 +6,10 @@
             <button type="button" class="btn-secondary" @click="load()"><x-icon name="refresh" class="h-4 w-4"/>Refresh</button></div>
     </x-page-header>
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Zone records</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.reduce((n,z) => n + Number(z.available || 0), 0)"></span><span class="kpi-label">Free spaces</span></div><div class="kpi"><span class="kpi-value" x-text="rows.reduce((n,z) => n + Number(z.occupied || 0), 0)"></span><span class="kpi-label">Occupied spaces</span></div></div>
     <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         <template x-for="z in rows" :key="z.zone_id">
-            <section class="card card-pad" :aria-label="`Zone ${z.code}`">
+            <section class="card card-pad transition-all hover:border-brand-soft hover:shadow-md" :aria-label="`Zone ${z.code}`">
                 <div class="flex items-start justify-between gap-2"><div><h2 class="card-title" x-text="`Zone ${z.code}`"></h2><p class="text-sm text-ink-muted" x-text="z.name"></p></div>
                     <span :class="z.is_active ? (z.available > 0 ? 'chip-success' : 'chip-danger') : 'chip-neutral'" x-text="!z.is_active ? 'Inactive' : (z.available > 0 ? `${z.available} free` : 'Full')"></span></div>
                 <div class="table-wrap mt-3"><table class="tbl"><thead><tr><th>Type</th><th class="tbl-num">Free</th><th class="tbl-num">Occupied</th><th class="tbl-num">Reserved</th><th class="tbl-num">Out of service</th></tr></thead><tbody>

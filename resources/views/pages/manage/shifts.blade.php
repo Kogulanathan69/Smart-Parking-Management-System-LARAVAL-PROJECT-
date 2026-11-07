@@ -1,6 +1,7 @@
 <x-layouts.app title="Shifts & roster" wide>
 <div x-data="{ tab: 'roster', staff: [], async init() { try { this.staff = (await ParkFlow.api.get('/admin/users', { role: 'staff', status: 'active', per_page: 100 })).data; } catch { this.staff = []; } } }">
     <x-page-header title="Shifts & roster" subtitle="Shift templates, staff assignments, coverage gaps and attendance. Times are Sri Lanka time."/>
+    <div class="alert-info mb-4"><strong>Server-recorded roster.</strong> Attendance and coverage views use published assignments and recorded check-in times.</div>
     <div class="mb-4 flex gap-1 overflow-x-auto border-b border-line" role="tablist">
         @foreach (['roster' => 'Roster', 'coverage' => 'Coverage gaps', 'attendance' => 'Attendance', 'templates' => 'Shift templates'] as $k => $l)
             <button type="button" role="tab" class="whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold" :aria-selected="(tab === '{{ $k }}').toString()" :class="tab === '{{ $k }}' ? 'border-brand-strong text-brand-stronger' : 'border-transparent text-ink-muted'" @click="tab = '{{ $k }}'">{{ $l }}</button>

@@ -5,6 +5,7 @@
     <x-page-header title="Vehicle categories" subtitle="Categories are never deleted, only deactivated. Vehicles already parked in a deactivated category can still check out.">
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>New category</button>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Vehicle categories</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(c => c.is_active).length"></span><span class="kpi-label">Active categories</span></div><div class="kpi"><span class="kpi-value" x-text="rows.filter(c => c.is_motorized).length"></span><span class="kpi-label">Motorised types</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Name</th><th>Code</th><th>Plate</th><th>Motorised</th><th>Fuel types</th><th>Status</th><th></th></tr></thead><tbody>
         <x-list-states cols="8"/>
         <template x-for="c in rows" :key="c.id"><tr><td class="tbl-num" x-text="c.sort_order"></td><td class="font-semibold" x-text="c.name"></td><td class="font-mono text-xs" x-text="c.code"></td>

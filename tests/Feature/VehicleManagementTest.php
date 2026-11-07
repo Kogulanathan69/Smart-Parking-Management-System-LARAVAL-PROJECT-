@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\ParkingSession;
 use App\Models\User;
 use App\Models\Vehicle;
 
@@ -18,6 +19,36 @@ it('registers petrol and diesel vehicles with category and fuel kept separate', 
         ->assertJsonPath('data.vehicle_category', 'car')
         ->assertJsonPath('data.fuel_type', $fuel);
 })->with(['petrol', 'diesel', 'electric', 'hybrid']);
+
+it('rejects customer claims of existing unowned, owned, and soft-deleted vehicles', function () {
+    $unowned = Vehicle::factory()->create(['identifier' => 'CLAIM1000', 'plate_number' => 'CLAIM-1000', 'owner_id' => null]);
+    $owned = Vehicle::factory()->create(['identifier' => 'CLAIM2000', 'plate_number' => 'CLAIM-2000', 'owner_id' => userWithRole(User::ROLE_CUSTOMER)->id]);
+    $deleted = Vehicle::factory()->create(['identifier' => 'CLAIM3000', 'plate_number' => 'CLAIM-3000', 'owner_id' => null]);
+    $deleted->delete();
+
+    foreach (['CLAIM-1000', 'CLAIM-2000', 'CLAIM-3000'] as $plate) {
+        $this->actingAs($this->customer)->postJson('/api/v1/customer/vehicles', [
+            'plate_number' => $plate, 'vehicle_category_id' => category('car')->id,
+        ])->assertStatus(409)
+            ->assertJsonPath('error_code', 'vehicle_already_registered')
+            ->assertJsonMissingPath('context.owner_id');
+    }
+
+    expect($unowned->refresh()->owner_id)->toBeNull()
+        ->and($owned->refresh()->owner_id)->not->toBe($this->customer->id)
+        ->and(Vehicle::withTrashed()->find($deleted->id)->trashed())->toBeTrue();
+});
+
+it('keeps one identifier and owner when registration requests conflict', function () {
+    $payload = ['plate_number' => 'RACE-1000', 'vehicle_category_id' => category('car')->id];
+
+    $this->actingAs($this->customer)->postJson('/api/v1/customer/vehicles', $payload)->assertCreated();
+    $this->postJson('/api/v1/customer/vehicles', $payload)
+        ->assertStatus(409)->assertJsonPath('error_code', 'vehicle_already_registered');
+
+    expect(Vehicle::where('identifier', 'RACE1000')->count())->toBe(1)
+        ->and(Vehicle::where('identifier', 'RACE1000')->value('owner_id'))->toBe($this->customer->id);
+});
 
 it('validates fuel types and their compatibility with the vehicle category', function () {
     $this->actingAs($this->customer)->postJson('/api/v1/customer/vehicles', [
@@ -80,13 +111,38 @@ it('prevents customers from editing or viewing other customers vehicles', functi
 
     $this->actingAs($other)->patchJson("/api/v1/customer/vehicles/{$id}", ['fuel_type' => 'diesel'])->assertForbidden();
     $this->actingAs($other)->getJson("/api/v1/customer/vehicles/{$id}")->assertForbidden();
+    $this->actingAs($other)->deleteJson("/api/v1/customer/vehicles/{$id}")->assertForbidden();
     $this->actingAs($other)->getJson('/api/v1/staff/vehicles')->assertForbidden();
+});
+
+it('blocks unlinking while a vehicle is parked or holds an active reservation', function () {
+    $parkedId = $this->actingAs($this->customer)->postJson('/api/v1/customer/vehicles', [
+        'plate_number' => 'PARKED-1', 'vehicle_category_id' => category('car')->id,
+    ])->json('data.id');
+    recordEntry($this->staff, ['plate_number' => 'PARKED-1']);
+
+    $this->actingAs($this->customer)->deleteJson("/api/v1/customer/vehicles/{$parkedId}")
+        ->assertStatus(409)->assertJsonPath('error_code', 'vehicle_in_active_session');
+    expect(Vehicle::find($parkedId)->owner_id)->toBe($this->customer->id);
+
+    $reservedId = $this->actingAs($this->customer)->postJson('/api/v1/customer/vehicles', [
+        'plate_number' => 'RESERVED-1', 'vehicle_category_id' => category('car')->id,
+    ])->json('data.id');
+    [$visit] = recordEntry($this->staff, [
+        'plate_number' => 'RESERVED-1', 'parking_zone_id' => zone('D')->id, 'parking_package_id' => package('monthly')->id,
+    ]);
+    $visit->forceFill(['status' => ParkingSession::COMPLETED, 'open_vehicle_key' => null, 'open_slot_key' => null, 'exit_at' => now()])->save();
+
+    $this->actingAs($this->customer)->deleteJson("/api/v1/customer/vehicles/{$reservedId}")
+        ->assertStatus(409)->assertJsonPath('error_code', 'vehicle_has_reservation');
+    expect(Vehicle::find($reservedId)->owner_id)->toBe($this->customer->id);
 });
 
 it('keeps parking history when a vehicle is removed from an account', function () {
     $owner = userWithRole(User::ROLE_CUSTOMER, ['phone' => '0771112222']);
     $id = $this->actingAs($owner)->postJson('/api/v1/customer/vehicles', ['plate_number' => 'HIST-1', 'vehicle_category_id' => category('car')->id])->json('data.id');
     [$session] = recordEntry($this->staff, ['plate_number' => 'HIST-1']);
+    $session->forceFill(['status' => ParkingSession::COMPLETED, 'open_vehicle_key' => null, 'open_slot_key' => null, 'exit_at' => now()])->save();
 
     $this->actingAs($owner)->deleteJson("/api/v1/customer/vehicles/{$id}")->assertNoContent();
 

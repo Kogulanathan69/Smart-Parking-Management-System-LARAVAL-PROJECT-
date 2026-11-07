@@ -6,9 +6,11 @@
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>Create account</button>
     </x-page-header>
     <form class="card mb-4 grid gap-3 p-4 sm:grid-cols-4" @submit.prevent="search()">
+        <div class="filter-heading"><span class="filter-heading-icon"><x-icon name="users"/></span><div><h2 class="card-title">Account directory</h2><p class="text-xs text-ink-muted">Search and filter authorized ParkFlow accounts.</p></div></div>
         <div class="sm:col-span-2"><label class="label" for="u-q">Name, email or phone</label><input id="u-q" class="input" x-model="filters.q"></div>
         <div><label class="label" for="u-r">Role</label><select id="u-r" class="input" x-model="filters.role"><option value="">All</option>@foreach (\App\Models\User::ROLES as $r)<option value="{{ $r }}">{{ \Illuminate\Support\Str::headline($r) }}</option>@endforeach</select></div>
-        <div><label class="label" for="u-s">Status</label><select id="u-s" class="input" x-model="filters.status" @change="search()"><option value="">All</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select></div>
+        <div><label class="label" for="u-s">Status</label><select id="u-s" class="input" x-model="filters.status"><option value="">All</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select></div>
+        <div class="flex items-end gap-2 sm:col-span-4"><button class="btn-primary">Search accounts</button><button type="button" class="btn-secondary" @click="reset()">Reset</button><span class="ml-auto text-sm text-ink-muted" x-show="loaded" x-text="summary"></span></div>
     </form>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>2-step</th><th>Last sign-in</th><th>Created</th></tr></thead><tbody>
         <x-list-states cols="7" empty="No accounts match."/>

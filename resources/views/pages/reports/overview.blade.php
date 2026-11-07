@@ -4,8 +4,8 @@
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
     <template x-if="d"><div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <x-kpi label="Parked now" value="d.active_sessions"/><x-kpi label="Check-ins today" value="d.entries_today"/><x-kpi label="Check-outs today" value="d.exits_today"/>
-            <x-kpi label="Revenue today" value="$fmt.money(d.revenue_today_minor)"/><x-kpi label="Open incidents" value="d.open_incidents"/><x-kpi label="Overdue safety checks" value="d.overdue_inspections"/>
+            <x-kpi label="Parked now" value="d.active_sessions" icon="car"/><x-kpi label="Check-ins today" value="d.entries_today" icon="arrow-in"/><x-kpi label="Check-outs today" value="d.exits_today" icon="arrow-out"/>
+            <x-kpi label="Revenue today" value="$fmt.money(d.revenue_today_minor)" icon="cash"/><x-kpi label="Open incidents" value="d.open_incidents" icon="alert"/><x-kpi label="Overdue safety checks" value="d.overdue_inspections" icon="shield"/>
         </div>
         <div class="mt-4">@include('pages.dashboards._occupancy')</div>
     </div></template>

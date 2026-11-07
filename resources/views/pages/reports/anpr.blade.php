@@ -9,8 +9,8 @@
     <template x-if="ov"><div class="space-y-4">
         <div class="alert-info text-sm" x-text="ov.note"></div>
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
-            <x-kpi label="Automatic readings" value="ov.automatic_events"/><x-kpi label="Read without help" value="$fmt.percent(ov.recognition_rate_percent)"/><x-kpi label="Awaiting review" value="ov.pending_reviews"/>
-            <x-kpi label="Corrections" value="ov.corrections"/><x-kpi label="Manual identifications" value="ov.manual_identifications"/><x-kpi label="Avg. processing" value="`${ov.avg_processing_ms} ms`"/>
+            <x-kpi label="Automatic readings" value="ov.automatic_events" icon="camera"/><x-kpi label="Read without help" value="$fmt.percent(ov.recognition_rate_percent)" icon="check"/><x-kpi label="Awaiting review" value="ov.pending_reviews" icon="clock"/>
+            <x-kpi label="Corrections" value="ov.corrections" icon="refresh"/><x-kpi label="Manual identifications" value="ov.manual_identifications" icon="user"/><x-kpi label="Avg. processing" value="`${ov.avg_processing_ms} ms`" icon="pulse"/>
         </div>
         <div class="grid gap-4 lg:grid-cols-2">
             <section class="card card-pad"><h2 class="card-title">Readings by status</h2><ul class="mt-3 space-y-1 text-sm"><template x-for="[k, v] in Object.entries(ov.events_by_status || {})" :key="k"><li class="flex justify-between"><x-state kind="recognition" value="k"/><span class="font-semibold" x-text="v"></span></li></template></ul></section>

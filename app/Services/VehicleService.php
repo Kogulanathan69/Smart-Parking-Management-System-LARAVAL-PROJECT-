@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCategory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -71,32 +73,55 @@ class VehicleService
         $plate = $data['plate_number'] ?? null;
         $details = array_intersect_key($data, array_flip(['make', 'model', 'color']));
 
-        if ($plate) {
-            $existing = Vehicle::withTrashed()->where('identifier', Vehicle::normalizePlate($plate))->first();
-            if ($existing && $existing->owner_id && $existing->owner_id !== $customer->id) {
-                // Do not reveal who owns it.
-                throw new ParkingException('This vehicle cannot be added to your account. Please contact the parking office.', 'vehicle_unavailable');
-            }
-            if ($existing) {
-                if ($existing->vehicle_category_id !== $category->id) {
-                    throw new ParkingException('This vehicle is registered under a different vehicle type. Please contact the parking office.', 'category_mismatch', 409);
-                }
-                if ($existing->trashed()) {
-                    $existing->restore();
-                }
-                $existing->forceFill(['owner_id' => $customer->id, 'fuel_type' => $fuel] + $details)->save();
-                $this->audit->log('vehicle.claimed', $existing, [], ['owner_id' => $customer->id]);
-
-                return $existing;
-            }
-        } elseif ($category->requires_plate) {
+        if (! $plate && $category->requires_plate) {
             throw new ParkingException('A licence plate is required for this vehicle category.', 'plate_required');
         }
 
-        $vehicle = $this->createVehicle($plate, $category, $customer, $customer, $fuel);
-        $vehicle->fill($details)->save();
+        $identifier = $plate ? Vehicle::normalizePlate($plate) : null;
 
-        return $vehicle;
+        try {
+            return DB::transaction(function () use ($customer, $category, $fuel, $plate, $details, $identifier) {
+                if ($identifier && Vehicle::withTrashed()->where('identifier', $identifier)->lockForUpdate()->exists()) {
+                    throw $this->customerVehicleConflict();
+                }
+
+                $vehicle = $this->createVehicle($plate, $category, $customer, $customer, $fuel);
+                $vehicle->fill($details)->save();
+
+                return $vehicle;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            if ($this->isIdentifierConflict($e)) {
+                throw $this->customerVehicleConflict();
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Remove an eligible vehicle from a customer's account without deleting history.
+     *
+     * @throws AuthorizationException
+     */
+    public function unlinkForCustomer(Vehicle $vehicle, User $customer): void
+    {
+        DB::transaction(function () use ($vehicle, $customer) {
+            $locked = Vehicle::whereKey($vehicle->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->owner_id !== $customer->id) {
+                throw new AuthorizationException;
+            }
+            if (ParkingSession::where('open_vehicle_key', $locked->id)->exists()) {
+                throw new ParkingException('This vehicle cannot be removed while it is parked.', 'vehicle_in_active_session', 409);
+            }
+            if (ParkingReservation::where('active_vehicle_key', $locked->id)->exists()) {
+                throw new ParkingException('This vehicle cannot be removed while it has an active reserved space.', 'vehicle_has_reservation', 409);
+            }
+
+            $locked->forceFill(['owner_id' => null])->save();
+            $this->audit->log('vehicle.unlinked', $locked);
+        });
     }
 
     /**
@@ -218,5 +243,22 @@ class VehicleService
         } while (Vehicle::withTrashed()->where('identifier', $ref)->exists());
 
         return $ref;
+    }
+
+    private function customerVehicleConflict(): ParkingException
+    {
+        return new ParkingException(
+            'This vehicle is already registered. Please contact parking staff for assistance.',
+            'vehicle_already_registered',
+            409
+        );
+    }
+
+    private function isIdentifierConflict(UniqueConstraintViolationException $e): bool
+    {
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'vehicles_identifier_unique')
+            || str_contains($message, 'vehicles.identifier');
     }
 }

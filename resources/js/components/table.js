@@ -88,7 +88,7 @@ export function form(initial = {}, submitter = null, { reset = false, onSuccess 
  * List + create/edit modal on top of dataTable(). The server validates and authorises every save;
  * field errors are shown inline from the 422 response.
  */
-export function crudPage({ blank = {}, toForm = (r) => ({ ...r }), create = null, update = null, after = null, ...listOpts } = {}) {
+export function crudPage({ blank = {}, toForm = (r) => ({ ...r }), create = null, update = null, after = null, successMessage = null, ...listOpts } = {}) {
     const list = dataTable(listOpts);
     const ui = {
         modal: false, mode: 'create', current: null, f: {}, errors: {}, busy: false,
@@ -101,7 +101,10 @@ export function crudPage({ blank = {}, toForm = (r) => ({ ...r }), create = null
             try {
                 const res = this.mode === 'create' ? await create.call(this, this.f) : await update.call(this, this.current, this.f);
                 this.modal = false;
-                window.ParkFlow.toast(this.mode === 'create' ? 'Created.' : 'Saved.');
+                const message = typeof successMessage === 'function'
+                    ? successMessage.call(this, this.mode, res)
+                    : successMessage;
+                window.ParkFlow.toast(message || (this.mode === 'create' ? 'Created.' : 'Saved.'));
                 await after?.call(this, res);
                 await this.load();
             } catch (e) { this.errors = e.errors || {}; window.ParkFlow.toast(e.message, 'danger'); } finally { this.busy = false; }

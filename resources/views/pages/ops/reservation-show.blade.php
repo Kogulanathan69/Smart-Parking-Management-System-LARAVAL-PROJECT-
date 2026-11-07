@@ -13,7 +13,7 @@
             <button type="button" class="btn-danger" x-show="r.status === 'active' && $store.app.can('admin','super_admin')" @click="cancel.open = true">Cancel reservation</button>
         </x-page-header>
         <div class="grid gap-4 lg:grid-cols-3">
-            <section class="card card-pad"><div class="flex items-center justify-between"><span class="plate text-lg" x-text="r.vehicle?.identifier"></span><x-state kind="reservation" value="r.status"/></div>
+            <section class="detail-hero"><div class="flex items-center justify-between"><span class="plate text-lg" x-text="r.vehicle?.identifier"></span><x-state kind="reservation" value="r.status"/></div>
                 <dl class="dl mt-4"><dt>Zone / slot</dt><dd x-text="`${r.zone?.code} / ${r.slot?.code}`"></dd><dt>Package</dt><dd x-text="r.package?.name"></dd>
                     <dt>Starts</dt><dd x-text="$fmt.dateTime(r.starts_at)"></dd><dt>Expires</dt><dd x-text="$fmt.dateTime(r.expires_at)"></dd>
                     <dt>Remaining</dt><dd x-text="r.remaining_minutes ? $fmt.minutes(r.remaining_minutes) : '—'"></dd><dt>Vehicle on site</dt><dd x-text="r.vehicle_on_site ? 'Yes' : 'No'"></dd>

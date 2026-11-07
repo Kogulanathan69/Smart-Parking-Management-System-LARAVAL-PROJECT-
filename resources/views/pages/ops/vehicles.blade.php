@@ -3,6 +3,7 @@
 <div x-data="dataTable({ url: '/staff/vehicles', filters: { q: '', vehicle_category_id: '', fuel_type: '' } })">
     <x-page-header title="Vehicle register" subtitle="Vehicles are registered automatically at Check-In or by customers in their account."/>
     <form class="card mb-4 grid gap-3 p-4 sm:grid-cols-4" @submit.prevent="search()">
+        <div class="filter-heading"><span class="filter-heading-icon"><x-icon name="search"/></span><div><h2 class="card-title">Find a vehicle</h2><p class="text-xs text-ink-muted">Search the operational vehicle register.</p></div></div>
         <div class="sm:col-span-2"><label class="label" for="v-q">Plate</label><input id="v-q" class="input" x-model="filters.q" maxlength="30"></div>
         <div><label class="label" for="v-c">Category</label><select id="v-c" class="input" x-model="filters.vehicle_category_id"><option value="">All</option><template x-for="c in ref?.vehicle_categories || []" :key="c.id"><option :value="c.id" x-text="c.name"></option></template></select></div>
         <div class="flex items-end gap-2"><button class="btn-primary flex-1">Search</button><button type="button" class="btn-secondary" @click="reset()">Reset</button></div>

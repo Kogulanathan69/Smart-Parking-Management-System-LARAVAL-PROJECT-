@@ -6,6 +6,7 @@
         <a href="{{ route('manage.pricing') }}" class="btn-secondary"><x-icon name="calculator" class="h-4 w-4"/>Price calculator</a>
         <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>New package</button>
     </x-page-header>
+    <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Parking packages</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(p => p.is_active).length"></span><span class="kpi-label">Active packages</span></div><div class="kpi"><span class="kpi-value" x-text="rows.reduce((n,p) => n + (p.current_rates || []).length, 0)"></span><span class="kpi-label">Published rates</span></div></div>
     <div class="grid gap-4 lg:grid-cols-2">
         <template x-for="p in rows" :key="p.id">
             <section class="card card-pad"><div class="flex items-start justify-between gap-2"><div><a :href="`/manage/packages/${p.id}`" class="text-lg font-semibold" x-text="p.name"></a>

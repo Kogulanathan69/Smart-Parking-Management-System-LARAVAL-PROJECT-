@@ -1,13 +1,14 @@
 <x-layouts.app title="Safety tasks">
 <div x-data="inspectionsPage()">
     <x-page-header title="Safety tasks" subtitle="Safety-package inspections due in the next 2 hours, oldest first."><button type="button" class="btn-secondary" @click="load()"><x-icon name="refresh" class="h-4 w-4"/>Refresh</button></x-page-header>
+    <div class="summary-strip"><div class="kpi"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="shield"/></span><span><span class="kpi-value block" x-text="due.length"></span><span class="kpi-label block">Inspections due</span></span></div></div></div>
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Due</th><th>Type</th><th>Session</th><th>Status</th><th></th></tr></thead><tbody>
         <tr x-show="loading"><td colspan="5"><div class="skeleton h-4 w-1/2"></div></td></tr>
         <template x-for="i in due" :key="i.id"><tr><td class="whitespace-nowrap" x-text="$fmt.dateTime(i.scheduled_for)"></td><td x-text="$fmt.titleCase(i.type)"></td>
             <td><a :href="`/ops/sessions/${i.session_uuid}`" x-text="i.session_reference"></a></td><td><x-state kind="inspection" value="i.status"/></td>
             <td class="text-right"><button type="button" class="btn-primary btn-sm" @click="start(i)">Inspect</button></td></tr></template>
-        <tr x-show="!loading && !due.length"><td colspan="5" class="py-8 text-center text-ink-muted">No inspections are due. Well done.</td></tr>
+        <tr x-show="!loading && !due.length"><td colspan="5" class="py-10 text-center"><span class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-success text-success-ink"><x-icon name="check"/></span><strong class="mt-2 block text-ink">All caught up</strong><span class="text-sm text-ink-muted">No inspections are due.</span></td></tr>
     </tbody></table></div></div>
     <x-modal show="current" close="current = null" title="Record inspection">
         <form id="ip-f" class="space-y-3" @submit.prevent="submit()">
