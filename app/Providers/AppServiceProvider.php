@@ -71,6 +71,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('anpr-device', fn (Request $request) => Limit::perMinute((int) config('parking.anpr.ingest_rate_per_minute'))
             ->by('anpr:'.substr((string) $request->header('X-Anpr-Camera'), 0, 40).'|'.$request->ip()));
         RateLimiter::for('gate', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+        RateLimiter::for('public-ticket', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
 
         Event::listen(NotificationSent::class, function (NotificationSent $event) {
             NotificationLog::create([

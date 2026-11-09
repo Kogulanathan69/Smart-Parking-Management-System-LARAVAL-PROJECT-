@@ -1,5 +1,6 @@
 ﻿@import 'tailwindcss';
 @import './customer-vehicles.css';
+@import './login.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -154,6 +155,47 @@
     .filter-heading { @apply flex items-center gap-2 sm:col-span-full; }
     .filter-heading-icon { @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-faint text-brand-strong; }
     .summary-strip { @apply mb-4 grid gap-3 grid-cols-2 lg:grid-cols-4; }
+
+    /* Executive dashboard */
+    .date-context { @apply inline-flex min-h-10 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink-muted; }
+    .executive-kpis { @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4; }
+    .executive-kpi { @apply card relative flex min-h-40 flex-col justify-end overflow-hidden p-5 text-ink transition-all hover:-translate-y-0.5 hover:border-brand-soft hover:text-ink hover:shadow-md; }
+    .executive-kpi-icon { @apply absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-xl bg-brand-faint text-brand-strong; }
+    .executive-kpi-icon svg { @apply h-6 w-6; }
+    .executive-kpi-value { @apply mt-2 block text-3xl font-bold leading-none tabular-nums tracking-tight; }
+    .executive-kpi-foot { @apply mt-2 text-xs leading-5 text-ink-muted; }
+    .executive-kpi-warning { @apply border-warning-line bg-gradient-to-br from-surface to-warning; }
+    .executive-kpi-warning .executive-kpi-icon { @apply bg-warning text-warning-ink; }
+    .secondary-metrics { @apply mt-3 grid overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-card)] sm:grid-cols-2 lg:grid-cols-4; }
+    .secondary-metrics > div { @apply flex items-center justify-between gap-3 border-b border-line px-4 py-3 last:border-b-0 sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:border-r lg:last:border-r-0; }
+    .secondary-metrics span { @apply text-sm text-ink-muted; }
+    .secondary-metrics strong { @apply text-lg font-bold tabular-nums; }
+    .quick-action-grid { @apply mt-4 grid gap-2 md:grid-cols-2 2xl:grid-cols-3; }
+    .quick-action { @apply flex min-h-16 items-center gap-3 rounded-xl border border-line bg-canvas/70 p-3 text-ink transition-all hover:border-brand-soft hover:bg-brand-faint hover:text-ink; }
+    .quick-action > span:first-child { @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-surface text-brand-strong shadow-sm; }
+    .quick-action > span:first-child svg { @apply h-5 w-5; }
+    .quick-action strong, .quick-action small { @apply block; }
+    .quick-action strong { @apply text-sm; }
+    .quick-action small { @apply mt-0.5 text-xs text-ink-muted; }
+    .attention-item { @apply flex items-center gap-3 rounded-xl border border-line p-3 text-ink hover:border-brand-soft hover:bg-brand-faint hover:text-ink; }
+    .attention-item > span:nth-child(2) { @apply flex-1; }
+    .attention-item strong, .attention-item small { @apply block; }
+    .attention-item strong { @apply text-sm; }
+    .attention-item small { @apply mt-0.5 text-xs text-ink-muted; }
+    .attention-item > svg { @apply h-4 w-4 text-ink-muted; }
+    .status-dot { @apply h-2.5 w-2.5 shrink-0 rounded-full ring-4; }
+    .status-dot-danger { @apply bg-danger-ink ring-danger; }
+    .status-dot-warning { @apply bg-warning-ink ring-warning; }
+    .empty-compact { @apply flex items-center gap-3 rounded-xl border border-success-line bg-success p-3 text-success-ink; }
+    .empty-compact > svg { @apply h-5 w-5 shrink-0; }
+    .empty-compact strong, .empty-compact small { @apply block; }
+    .empty-compact strong { @apply text-sm; }
+    .empty-compact small { @apply mt-0.5 text-xs; }
+}
+
+@media (max-width: 639px) {
+    .executive-kpi { min-height: 9rem; }
+    .executive-kpi-value { font-size: 1.65rem; }
 }
 
 @media print {

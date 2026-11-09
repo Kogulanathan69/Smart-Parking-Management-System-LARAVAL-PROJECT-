@@ -21,6 +21,6 @@ class DisabledAnprEngine implements AnprEngine
 
     public function health(): array
     {
-        return ['available' => false, 'latency_ms' => null, 'detail' => ['reason' => 'disabled']];
+        return ['available' => false, 'state' => 'not_configured', 'latency_ms' => null, 'detail' => ['reason' => 'disabled']];
     }
 }

@@ -20,7 +20,7 @@ class SettleExitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'qr_payload' => ['required', 'string', 'max:100'],
+            'qr_payload' => ['required', 'string', 'max:500'],
             'idempotency_key' => ['required', 'string', 'min:8', 'max:100'],
             'payment_method' => ['nullable', 'string', 'exists:payment_methods,code'],
             'tendered_minor' => ['nullable', 'integer', 'min:0', 'max:100000000000'],

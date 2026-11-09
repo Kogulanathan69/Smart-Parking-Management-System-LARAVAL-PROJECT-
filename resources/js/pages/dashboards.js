@@ -26,12 +26,18 @@ export function registerDashboards(Alpine) {
 
     Alpine.data('opsDashboard', (initial) => ({
         ...refreshing(initial, window.location.pathname),
+        get activeZones() { return (this.d.occupancy || []).filter((z) => z.is_active); },
+        get totalSpaces() { return this.activeZones.reduce((sum, z) => sum + Number(z.total || 0), 0); },
+        get occupiedSpaces() { return this.activeZones.reduce((sum, z) => sum + Number(z.occupied || 0) + Number(z.reserved || 0), 0); },
+        get availableSpaces() { return this.activeZones.reduce((sum, z) => sum + Number(z.available || 0), 0); },
+        get occupancyPercent() { return this.totalSpaces ? Math.round(this.occupiedSpaces / this.totalSpaces * 100) : 0; },
+        get attentionTotal() { return Number(this.d.open_incidents || 0) + Number(this.d.overdue_inspections || 0) + Number(this.d.pending_refunds || 0); },
     }));
 
     Alpine.data('anprSnapshot', () => ({
-        engine: null, cameras: null, pending: null,
+        engine: null, cameras: null, pending: null, configured: null,
         async init() {
-            try { const h = await api.get('/reports/anpr/camera-health'); this.engine = h.data.engine; this.cameras = h.data.cameras; } catch { this.engine = { available: false, driver: 'unknown' }; this.cameras = []; }
+            try { const h = await api.get('/reports/anpr/camera-health'); this.engine = h.data.engine; this.cameras = h.data.cameras; this.configured = h.data.configured !== false; } catch { this.engine = { available: false, driver: 'unknown' }; this.cameras = []; this.configured = null; }
             try { const r = await api.get('/staff/anpr/events', { verification_status: 'pending', unused: 1, per_page: 1 }); this.pending = r.meta?.total ?? 0; } catch { this.pending = '—'; }
         },
     }));

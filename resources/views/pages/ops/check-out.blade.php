@@ -12,7 +12,7 @@
         <h2 id="tk-h" class="card-title">Scan internal ticket</h2>
         <p class="mt-1 text-sm text-ink-muted">Backup only — for example when the plate cannot be read. Focus the box and scan the QR code; the scanner types it in.</p>
         <form class="mt-3 flex flex-col gap-2 sm:flex-row" @submit.prevent="ticketPreview()">
-            <label class="sr-only" for="tk-qr">Ticket code</label><input id="tk-qr" class="input font-mono" x-model="ticket.qr" placeholder="SPT1-…" autocomplete="off" maxlength="100">
+            <label class="sr-only" for="tk-qr">Ticket code</label><input id="tk-qr" class="input font-mono" x-model="ticket.qr" placeholder="Scan QR or enter SPT1 ticket" autocomplete="off" maxlength="500">
             <button class="btn-primary" :disabled="busy || !ticket.qr.trim()">Look up ticket</button>
         </form>
         <template x-if="ticketQuote">

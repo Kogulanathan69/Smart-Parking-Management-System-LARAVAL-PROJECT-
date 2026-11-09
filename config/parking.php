@@ -24,6 +24,10 @@ return [
     'qr' => [
         /** Printed QR payload prefix; versioned so the format can change safely. */
         'prefix' => 'SPT1-',
+        /** Public origin used in newly printed mobile ticket QR codes. Empty keeps legacy staff QR output. */
+        'public_base_url' => env('PARKING_PUBLIC_TICKET_URL'),
+        /** Explicit opt-in for a LAN/demo HTTP origin. Production public tickets require HTTPS. */
+        'allow_insecure_http' => env('PARKING_PUBLIC_TICKET_ALLOW_HTTP', false),
     ],
 
     'evidence' => [

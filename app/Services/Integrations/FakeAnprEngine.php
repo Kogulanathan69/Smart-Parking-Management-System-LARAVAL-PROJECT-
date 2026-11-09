@@ -42,6 +42,6 @@ class FakeAnprEngine implements AnprEngine
 
     public function health(): array
     {
-        return ['available' => self::$available, 'latency_ms' => self::$available ? 5 : null];
+        return ['available' => self::$available, 'state' => self::$available ? 'online' : 'offline', 'latency_ms' => self::$available ? 5 : null];
     }
 }

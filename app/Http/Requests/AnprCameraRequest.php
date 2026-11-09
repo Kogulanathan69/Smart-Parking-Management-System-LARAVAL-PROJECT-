@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\AnprCamera;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\Anpr\AnprSchema;
 
 class AnprCameraRequest extends FormRequest
 {
@@ -18,7 +19,7 @@ class AnprCameraRequest extends FormRequest
         $creating = $this->isMethod('post');
 
         return [
-            'code' => $creating ? ['required', 'string', 'max:40', 'alpha_dash', Rule::unique('anpr_cameras', 'code')] : ['prohibited'],
+            'code' => $creating ? array_filter(['required', 'string', 'max:40', 'alpha_dash', AnprSchema::cameras() ? Rule::unique('anpr_cameras', 'code') : null]) : ['prohibited'],
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:100'],
             'direction' => [$creating ? 'required' : 'sometimes', Rule::in(AnprCamera::DIRECTIONS)],
             'gate_code' => ['nullable', 'string', 'max:40', 'alpha_dash'],

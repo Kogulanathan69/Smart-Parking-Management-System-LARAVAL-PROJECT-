@@ -66,11 +66,23 @@ export function anprFlow(direction) {
                     // Stored as engine_error: offer manual identification linked to this event.
                     this.event = e.data.data; this.step = 'review';
                     toast('The recognition engine is unavailable. Identify the vehicle manually.', 'warning');
-                } else { this.uploadError = e.errors?.image?.[0] || e.message; }
+                } else if (e.code === 'anpr_not_configured') {
+                    this.uploadError = 'ANPR image recognition is not configured. Use Type Plate Manually to continue.';
+                } else if (e.status === 403) {
+                    this.uploadError = 'Your account is not permitted to run plate recognition.';
+                } else if (e.status === 413 || e.errors?.image) {
+                    this.uploadError = e.errors?.image?.[0] || 'The image is too large or is not a valid JPG/PNG photo.';
+                } else {
+                    this.uploadError = e.message || 'The image could not be recognised. Type the plate manually to continue.';
+                }
             } finally { this.busy = false; }
         },
         async manualIdentify(originalUuid = null) {
             if (this.busy) return;
+            if (direction === 'entry' && typeof this.beginManualEntry === 'function') {
+                await this.beginManualEntry();
+                return;
+            }
             this.busy = true; this.manualErrors = {};
             try {
                 const payload = { direction, ...this.manual, original_event_uuid: originalUuid || this.linkOriginal || undefined };

@@ -5,7 +5,7 @@ import { mixin } from '../lib/mixin';
 
 export function checkIn() {
     return mixin(anprFlow('entry'), {
-        ref: null, previewData: null, previewError: null, availability: null,
+        ref: null, previewData: null, previewError: null, availability: null, manualDirect: false,
         entry: { vehicle_category_id: '', fuel_type: '', parking_zone_id: '', parking_package_id: '', customer_name: '', customer_phone: '', notes: '' },
         entryErrors: {}, confirmed: false, result: null,
 
@@ -15,8 +15,57 @@ export function checkIn() {
             this.$watch('entry.vehicle_category_id', () => this.onCategory());
             this.$watch('entry.parking_zone_id', () => { if (!this.packagesForZone.some((p) => String(p.id) === String(this.entry.parking_package_id))) this.entry.parking_package_id = this.packagesForZone.length === 1 ? this.packagesForZone[0].id : ''; });
         },
-        onReset() { this.previewData = null; this.previewError = null; this.result = null; this.confirmed = false; this.entryErrors = {};
+        onReset() { this.previewData = null; this.previewError = null; this.result = null; this.confirmed = false; this.entryErrors = {}; this.manualDirect = false;
             this.entry = { vehicle_category_id: '', fuel_type: '', parking_zone_id: '', parking_package_id: '', customer_name: '', customer_phone: '', notes: '' }; },
+
+        async beginManualEntry() {
+            if (this.busy) return;
+            const plate = this.manual.reason === 'no_plate' ? '' : this.manual.plate_number.trim();
+            if (!plate && this.manual.reason !== 'no_plate') {
+                this.manualErrors = { plate_number: ['Type the plate exactly as shown on the vehicle.'] };
+                return;
+            }
+            if (plate && !/^[A-Za-z0-9 -]{1,20}$/.test(plate)) {
+                this.manualErrors = { plate_number: ['Use only letters, numbers, spaces and hyphens.'] };
+                return;
+            }
+            this.busy = true; this.manualErrors = {};
+            try {
+                const lookup = plate ? await api.get('/staff/vehicles/lookup', { plate }) : { found: false, vehicle: null };
+                const vehicle = lookup.vehicle;
+                this.manualDirect = true;
+                this.event = { source: 'manual', verification_status: 'verified', verified_plate: plate || null };
+                this.previewData = {
+                    plate, vehicle: vehicle ? {
+                        id: vehicle.id,
+                        identifier: vehicle.identifier || vehicle.plate_number,
+                        vehicle_category: vehicle.vehicle_category,
+                        fuel_type: vehicle.fuel_type?.value || vehicle.fuel_type,
+                    } : null,
+                    is_new_vehicle: !lookup.found,
+                    suggestions: [],
+                    blocked: lookup.active_session ? { session_reference: lookup.active_session } : null,
+                    active_reservation: lookup.active_reservation,
+                    zones: [],
+                };
+                const cat = this.previewData.vehicle
+                    ? this.ref.vehicle_categories.find((c) => c.code === this.previewData.vehicle.vehicle_category)
+                    : null;
+                this.entry.vehicle_category_id = cat?.id || '';
+                this.entry.fuel_type = this.previewData.vehicle?.fuel_type || '';
+                const res = this.previewData.active_reservation;
+                if (res?.is_valid) {
+                    this.entry.parking_zone_id = res.zone_id ?? '';
+                    this.entry.parking_package_id = res.package_id ?? '';
+                }
+                this.step = 'details';
+                await this.onCategory();
+                toast('Manual plate accepted. Complete the parking details.');
+            } catch (e) {
+                this.manualErrors = e.errors || {};
+                toast(e.message, 'danger');
+            } finally { this.busy = false; }
+        },
 
         async loadPreview() {
             this.previewError = null; this.previewData = null;
@@ -46,6 +95,12 @@ export function checkIn() {
         get category() { return this.ref?.vehicle_categories.find((c) => String(c.id) === String(this.entry.vehicle_category_id)) || null; },
         get fuelOptions() { const allowed = this.category?.allowed_fuel_types || []; return (this.ref?.fuel_types || []).filter((f) => allowed.includes(f.value)); },
         get zones() {
+            if (this.manualDirect) {
+                return (this.availability || []).map((z) => {
+                    const row = z.by_vehicle_category?.find((b) => b.vehicle_category === this.category?.code);
+                    return { zone_id: z.zone_id, code: z.code, name: z.name, packages: z.packages || [], allowed: !!row, available: row?.available ?? 0 };
+                });
+            }
             return (this.previewData?.zones || []).map((z) => {
                 const live = (this.availability || []).find((a) => a.zone_id === z.zone_id);
                 const row = live?.by_vehicle_category?.find((b) => b.vehicle_category === this.category?.code);
@@ -66,10 +121,21 @@ export function checkIn() {
             if (this.busy || !this.readyToConfirm) return;
             this.busy = true; this.entryErrors = {};
             try {
-                const payload = { event_uuid: this.event.uuid, confirm_plate: this.plateForConfirm, ...this.entry };
+                const payload = this.manualDirect
+                    ? {
+                        plate_number: this.plateForConfirm || null,
+                        ...this.entry,
+                        notes: this.entry.notes || ('Manual identification: '
+                            + (this.reasons.find(([value]) => value === this.manual.reason)?.[1] || this.manual.reason)
+                            + (this.manual.notes ? ' — ' + this.manual.notes : '')).slice(0, 500),
+                    }
+                    : { event_uuid: this.event.uuid, confirm_plate: this.plateForConfirm, ...this.entry };
                 Object.keys(payload).forEach((k) => { if (payload[k] === '') delete payload[k]; });
-                const r = await api.post('/staff/anpr/entry/confirm', payload);
-                this.result = r.data; this.step = 'done';
+                const r = await api.post(this.manualDirect ? '/staff/entries' : '/staff/anpr/entry/confirm', payload);
+                this.result = this.manualDirect
+                    ? { ...r.data, legacy_ticket: r.data.ticket, gate: { note: 'Not requested' } }
+                    : r.data;
+                this.step = 'done';
                 toast(`Checked in ${r.data.data.vehicle?.plate_number || r.data.data.vehicle?.identifier}.`);
             } catch (e) {
                 this.entryErrors = e.errors || {};
@@ -88,6 +154,7 @@ export function checkIn() {
             w.document.write(`<!doctype html><title>Ticket ${esc(t.session_reference)}</title><body style="font-family:Segoe UI,Arial;text-align:center;padding:16px">
                 <h2 style="margin:0">ParkFlow</h2><p style="margin:4px 0 12px">Parking ticket</p>${t.qr_svg}
                 <p><b>${esc(t.session_reference)}</b><br>${esc(t.vehicle)} · Zone ${esc(t.zone)} · ${esc(t.slot)}<br>${esc(t.package)}<br>In: ${esc(t.entry_at_local)}${t.package_ends_at_local ? `<br>Ends: ${esc(t.package_ends_at_local)}` : ''}</p>
+                <p style="font-size:12px;font-weight:600">${esc(t.instruction)}</p>
                 <p style="font-size:11px">Keep this ticket. Times are Sri Lanka time.</p><script>window.onload=()=>{window.print()}<\/script></body>`);
             w.document.close();
         },

@@ -19,8 +19,14 @@ export function registerShell(Alpine) {
         async check() {
             try {
                 const r = await api.get('/anpr/health');
-                const ok = r.anpr_engine === 'available';
-                this.label = ok ? 'ANPR engine online' : 'ANPR engine offline';
+                const state = r.anpr_engine;
+                const ok = state === 'online';
+                const labels = {
+                    not_configured: 'ANPR not configured', starting: 'ANPR engine starting',
+                    online: 'ANPR engine online', offline: 'ANPR engine offline',
+                    unreachable: 'ANPR engine unreachable', recognition_error: 'ANPR recognition error',
+                };
+                this.label = labels[state] || 'ANPR status unknown';
                 this.cls = ok ? 'chip-success' : 'chip-warning';
                 this.title = ok ? 'Plate recognition is available' : 'Plate recognition is unavailable. Use manual identification; staff can still check vehicles in and out.';
             } catch { this.label = 'ANPR status unknown'; this.cls = 'chip-neutral'; }

@@ -86,7 +86,8 @@
 
         {{-- print-only ticket --}}
         <div class="print-only text-center" x-show="ticket"><h2 class="text-xl font-bold">ParkFlow</h2><div class="mx-auto my-3 w-56" x-html="ticket?.qr_svg"></div>
-            <p class="font-semibold" x-text="ticket?.session_reference"></p><p x-text="`${ticket?.vehicle} · Zone ${ticket?.zone} · ${ticket?.slot}`"></p><p x-text="`In: ${ticket?.entry_at_local}`"></p></div>
+            <p class="font-semibold" x-text="ticket?.session_reference"></p><p x-text="`${ticket?.vehicle} - Zone ${ticket?.zone} - ${ticket?.slot}`"></p><p x-text="`In: ${ticket?.entry_at_local}`"></p>
+            <p class="mt-2 text-sm font-semibold" x-text="ticket?.instruction"></p></div>
 
         <x-modal show="open.penalty" title="Apply penalty">
             <form id="pen-f" class="space-y-3" @submit.prevent="applyPenalty()">

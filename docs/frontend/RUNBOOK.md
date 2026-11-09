@@ -8,12 +8,12 @@ New packages (dev, bundled into `public/build`; nothing loads from the Internet 
 
 ## Build and run (Windows / Herd)
 ```powershell
-cd C:\Users\kogul\Herd\smart-parking-anpr        # the worktree holding feature/parkflow-frontend
+cd C:\path\to\ParkFlow                            # your cloned repository
 npm ci                                            # once (needs the npm registry or an offline npm cache)
 npm run build                                     # writes public/build (git-ignored)
-php artisan migrate                               # ONLY after a DB backup and approval (no new migrations in this branch)
+php artisan migrate                               # ONLY against a verified intended database, after backup and approval
 ```
-Open `https://smart-parking-anpr.test` (Herd) and sign in. For development with hot reload: `npm run dev`.
+Open the `APP_URL` configured for that machine and sign in. For development with hot reload: `npm run dev`.
 
 Offline parking PC: run `npm ci && npm run build` on a machine with Internet, then copy the whole project including `public/build`. The PC itself needs no Node.js to serve the UI.
 

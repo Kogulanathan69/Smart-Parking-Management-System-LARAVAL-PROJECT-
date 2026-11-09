@@ -8,6 +8,7 @@ use App\Http\Resources\AnprCameraResource;
 use App\Models\AnprCamera;
 use App\Services\Anpr\AnprCameraService;
 use App\Services\SettingsService;
+use App\Support\Anpr\AnprSchema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,8 +17,11 @@ class CameraController extends Controller
 {
     public function __construct(private AnprCameraService $cameras) {}
 
-    public function index(): AnonymousResourceCollection
+    public function index(): AnonymousResourceCollection|JsonResponse
     {
+        if (! AnprSchema::cameras()) {
+            return response()->json(['data' => [], 'meta' => ['configuration_state' => 'not_configured']]);
+        }
         return AnprCameraResource::collection(AnprCamera::orderBy('code')->get());
     }
 
@@ -26,6 +30,9 @@ class CameraController extends Controller
      */
     public function store(AnprCameraRequest $request): JsonResponse
     {
+        if (! AnprSchema::cameras()) {
+            return response()->json(AnprSchema::unavailable('Camera registration'), 409);
+        }
         [$camera, $token] = $this->cameras->create($request->validated(), $request->user());
 
         return response()->json(['data' => new AnprCameraResource($camera->refresh()), 'device_token' => $token, 'device_token_notice' => 'Store this token in the ANPR agent configuration now; it cannot be shown again.'], 201);

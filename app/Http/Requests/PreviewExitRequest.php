@@ -20,7 +20,7 @@ class PreviewExitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'qr_payload' => ['required', 'string', 'max:100'],
+            'qr_payload' => ['required', 'string', 'max:500'],
         ];
     }
 }

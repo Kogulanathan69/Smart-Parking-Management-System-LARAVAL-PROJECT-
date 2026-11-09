@@ -14,6 +14,7 @@
         <label class="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" class="check" x-model="filters.unused" true-value="1" false-value=""> Unused only</label>
         <div class="flex items-end gap-2"><button class="btn-primary flex-1">Filter</button><button type="button" class="btn-secondary" @click="reset()">Reset</button></div>
     </form>
+    <div x-show="raw?.configuration_state === 'not_configured'" class="alert-warning mb-4"><strong>ANPR review is not configured.</strong> No recognition storage or camera devices are available. Ask the system administrator to install the optional ANPR schema.</div>
     @include('pages.ops._anpr-table', ['canAct' => true])
 </div>
 </x-layouts.app>

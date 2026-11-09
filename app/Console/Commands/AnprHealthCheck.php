@@ -7,6 +7,7 @@ use App\Models\AnprCamera;
 use App\Models\AnprCameraHealthLog;
 use App\Services\Anpr\AnprCameraService;
 use App\Services\SettingsService;
+use App\Support\Anpr\AnprSchema;
 use Illuminate\Console\Command;
 
 class AnprHealthCheck extends Command
@@ -19,12 +20,14 @@ class AnprHealthCheck extends Command
     {
         $offlineAfter = (int) $settings->get('anpr.camera_offline_after_seconds');
         $marked = 0;
-        AnprCamera::where('is_enabled', true)->each(function (AnprCamera $camera) use ($cameras, $offlineAfter, &$marked) {
-            $marked += $cameras->markOfflineIfStale($camera, $offlineAfter) ? 1 : 0;
-        });
+        if (AnprSchema::cameras()) {
+            AnprCamera::where('is_enabled', true)->each(function (AnprCamera $camera) use ($cameras, $offlineAfter, &$marked) {
+                $marked += $cameras->markOfflineIfStale($camera, $offlineAfter) ? 1 : 0;
+            });
+        }
 
         $health = $engine->health();
-        $last = AnprCameraHealthLog::where('component', 'engine')->latest('id')->value('status');
+        $last = AnprSchema::healthLogs() ? AnprCameraHealthLog::where('component', 'engine')->latest('id')->value('status') : null;
         $now = $health['available'] ? 'online' : 'offline';
         if ($last !== $now && ! ($last === 'recovered' && $now === 'online')) {
             $cameras->logHealth(null, 'engine', $now === 'online' && $last ? 'recovered' : $now, $engine->name(), $health['latency_ms']);

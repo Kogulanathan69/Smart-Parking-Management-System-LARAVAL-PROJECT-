@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\RoleMatrixController;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PublicTicketController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -132,3 +133,7 @@ Route::middleware(['auth', 'role:customer'])->prefix('my')->name('my.')->group(f
     $page('/support', 'my.support', 'support');
     $page('/support/{id}', 'my.support-show', 'support.show')->whereNumber('id');
 });
+Route::get('/t/{token}', PublicTicketController::class)
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:public-ticket')
+    ->name('ticket.public');

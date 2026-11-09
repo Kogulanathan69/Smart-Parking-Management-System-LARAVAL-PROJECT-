@@ -3,13 +3,14 @@
         create: (d) => { const b = { ...d }; ['gate_code','stream_url','stream_username','stream_password'].forEach(k => { if (!b[k]) delete b[k]; }); return ParkFlow.api.post('/admin/anpr/cameras', b); },
         after(res) { this.token = { code: res.data.data.code, value: res.data.device_token }; } })">
     <x-page-header title="ANPR cameras" subtitle="Each camera agent authenticates with its own device token. Stream credentials are stored encrypted and are never shown again.">
-        <button type="button" class="btn-primary" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>Register camera</button>
+        <button type="button" class="btn-primary" x-show="raw?.meta?.configuration_state !== 'not_configured'" @click="openCreate()"><x-icon name="plus" class="h-4 w-4"/>Register camera</button>
     </x-page-header>
     <div class="alert-info mb-4">No camera hardware has been tested with this installation yet. Cameras show <em>Online</em> only when their agent sends heartbeats.</div>
+    <div x-show="raw?.meta?.configuration_state === 'not_configured'" class="alert-warning mb-4"><strong>Camera module not configured.</strong> The optional ANPR database schema is not installed. Device registration is unavailable until the module is installed.</div>
     @include('pages.manage._token-once')
     <div class="summary-strip" x-show="loaded"><div class="kpi"><span class="kpi-value" x-text="rows.length"></span><span class="kpi-label">Registered devices</span></div><div class="kpi"><span class="kpi-value text-success-ink" x-text="rows.filter(c => c.is_enabled && c.status === 'online').length"></span><span class="kpi-label">Online cameras</span></div><div class="kpi"><span class="kpi-value" x-text="rows.filter(c => c.is_enabled).length"></span><span class="kpi-label">Enabled cameras</span></div></div>
     <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Camera</th><th>Direction</th><th>Type</th><th>Stream host</th><th>Status</th><th>Last heartbeat</th><th>Last reading</th></tr></thead><tbody>
-        <x-list-states cols="7" empty="No cameras registered. Staff can still use upload or manual identification."/>
+        <x-list-states cols="7" empty="No cameras registered."/>
         <template x-for="c in rows" :key="c.id"><tr><td><a :href="`/manage/cameras/${c.id}`" class="font-semibold" x-text="c.code"></a><span class="block text-xs text-ink-muted" x-text="c.name"></span></td>
             <td x-text="$fmt.titleCase(c.direction)"></td><td x-text="$fmt.titleCase(c.camera_type)"></td><td class="font-mono text-xs" x-text="c.stream_host || '—'"></td>
             <td><x-state kind="camera" value="c.is_enabled ? c.status : 'disabled'"/></td><td x-text="$fmt.dateTime(c.last_heartbeat_at, 'Never')"></td><td x-text="$fmt.dateTime(c.last_capture_at, 'Never')"></td></tr></template>

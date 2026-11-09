@@ -16,7 +16,9 @@ interface AnprEngine
     public function recognize(string $imageBytes, string $mimeType): array;
 
     /**
-     * @return array{available: bool, latency_ms: ?int, detail?: array<string, mixed>}
+     * state: not_configured | starting | online | offline | unreachable | recognition_error
+     *
+     * @return array{available: bool, state: string, latency_ms: ?int, detail?: array<string, mixed>}
      */
     public function health(): array;
 }

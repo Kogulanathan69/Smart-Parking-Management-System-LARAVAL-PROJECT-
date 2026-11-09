@@ -7,6 +7,7 @@ use App\Models\AnprCamera;
 use App\Models\AnprCameraHealthLog;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\Anpr\AnprSchema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -125,6 +126,12 @@ class AnprCameraService
 
     public function logHealth(?AnprCamera $camera, string $component, string $status, ?string $message, ?int $latencyMs): void
     {
+        // A provider outage must remain a recognition result, not become a database error
+        // during a staged installation where health history is not available yet.
+        if (! AnprSchema::healthLogs()) {
+            return;
+        }
+
         AnprCameraHealthLog::create([
             'anpr_camera_id' => $camera?->id,
             'component' => $component,

@@ -11,9 +11,11 @@
             </tbody></table></div>
             <p class="mt-3 text-xs text-ink-muted">"Simulated" means no hardware or external service is driven: e.g. gate commands are logged only and staff open the barrier by hand.</p></section>
         <section class="detail-hero"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="camera"/></span><h2 class="card-title">Plate recognition & cameras</h2></div>
-            <dl class="dl mt-3"><dt>Engine</dt><dd><span :class="d.anpr_engine.available ? 'chip-success' : 'chip-danger'" x-text="d.anpr_engine.available ? `Available (${d.anpr_engine.latency_ms ?? '—'} ms)` : 'Unavailable'"></span></dd>
+            <dl class="dl mt-3"><dt>Engine</dt><dd><span :class="d.anpr_engine.available ? 'chip-success' : 'chip-danger'" x-text="(({ not_configured: 'Not configured', starting: 'Starting', online: 'Online', offline: 'Offline', unreachable: 'Unreachable', recognition_error: 'Recognition error' })[d.anpr_engine.state] || 'Unknown') + (d.anpr_engine.latency_ms !== null ? ' (' + d.anpr_engine.latency_ms + ' ms)' : '')"></span></dd>
                 <dt>Verification</dt><dd x-text="d.verification_mode === 'always' ? 'Staff verify every reading' : 'Only uncertain readings need explicit verification'"></dd>
-                <dt>Cameras</dt><dd x-text="`${d.cameras.online} online of ${d.cameras.enabled} enabled (${d.cameras.total} registered)`"></dd></dl>
+                <dt>Configuration</dt><dd><span :class="d.cameras.configured ? 'chip-success' : 'chip-neutral'" x-text="d.cameras.configured ? 'Configured' : 'Not configured'"></span></dd>
+                <dt>Cameras</dt><dd x-text="d.cameras.configured ? `${d.cameras.online} online of ${d.cameras.enabled} enabled (${d.cameras.total} registered)` : 'No camera schema or devices installed'"></dd>
+                <dt>Recognition workflow</dt><dd><span :class="d.cameras.configured ? 'chip-success' : 'chip-neutral'" x-text="d.cameras.configured ? 'Available' : 'Not configured'"></span></dd></dl>
             <a href="{{ route('manage.cameras') }}" class="mt-3 inline-block text-sm font-semibold">Manage cameras →</a></section>
         <section class="card card-pad"><div class="flex items-center gap-3"><span class="filter-heading-icon"><x-icon name="gate"/></span><h2 class="card-title">Gate</h2></div>
             <dl class="dl mt-3"><dt>Slot released on</dt><dd x-text="d.gate.release_slot_on === 'gate' ? 'Staff confirmation of departure' : 'Settlement'"></dd>

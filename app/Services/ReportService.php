@@ -56,9 +56,14 @@ class ReportService
         $tz = config('parking.business_timezone');
         $payments = Payment::with('method')->where('status', Payment::PAID)->whereBetween('paid_at', [$start, $end])->get();
 
-        $byDay = $payments->groupBy(fn (Payment $p) => $p->paid_at->setTimezone($tz)->format('Y-m-d'))
+        $groupedByDay = $payments->groupBy(fn (Payment $p) => $p->paid_at->setTimezone($tz)->format('Y-m-d'))
             ->map(fn ($group, $day) => ['date' => $day, 'count' => $group->count(), 'amount_minor' => (int) $group->sum('amount_minor')])
-            ->sortKeys()->values();
+            ->sortKeys();
+        $byDay = collect();
+        for ($day = $start->setTimezone($tz)->startOfDay(); $day <= $end->setTimezone($tz); $day = $day->addDay()) {
+            $key = $day->toDateString();
+            $byDay->push($groupedByDay->get($key, ['date' => $key, 'count' => 0, 'amount_minor' => 0]));
+        }
         $byMethod = $payments->groupBy(fn (Payment $p) => $p->method->code)
             ->map(fn ($group, $method) => ['method' => $method, 'count' => $group->count(), 'amount_minor' => (int) $group->sum('amount_minor')])->values();
 
@@ -205,6 +210,11 @@ class ReportService
             'revenue_today_minor' => (int) Payment::where('status', Payment::PAID)->where('paid_at', '>=', $todayStart)->sum('amount_minor'),
             'open_incidents' => Incident::whereIn('status', ['open', 'investigating'])->count(),
             'overdue_inspections' => SafetyInspection::where('status', SafetyInspection::SCHEDULED)->where('scheduled_for', '<', now())->count(),
+            'pending_refunds' => Refund::where('status', Refund::PENDING)->count(),
+            'overdue_sessions' => ParkingSession::whereIn('status', [ParkingSession::ACTIVE, ParkingSession::EXIT_AUTHORIZED])
+                ->whereNotNull('package_ends_at')->where('package_ends_at', '<', now())->count(),
+            'business_date' => CarbonImmutable::now($tz)->toDateString(),
+            'timezone' => $tz,
             'users_by_role' => User::query()->selectRaw('role, status, count(*) as total')->groupBy('role', 'status')->get()
                 ->map(fn ($r) => ['role' => $r->role, 'status' => $r->status, 'total' => (int) $r->total])->all(),
         ];

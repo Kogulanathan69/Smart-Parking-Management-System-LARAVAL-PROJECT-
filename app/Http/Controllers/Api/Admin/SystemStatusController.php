@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AnprCamera;
 use App\Models\GateCommand;
 use App\Services\SettingsService;
+use App\Support\Anpr\AnprSchema;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -34,15 +35,17 @@ class SystemStatusController extends Controller
 
         $health = $engine->health();
         $offlineAfter = (int) $settings->get('anpr.camera_offline_after_seconds');
-        $cameras = AnprCamera::all();
-        $lastGate = GateCommand::latest('id')->first();
+        $cameras = AnprSchema::cameras() ? AnprCamera::all() : collect();
+        $lastGate = AnprSchema::gateCommands() ? GateCommand::latest('id')->first() : null;
 
         return response()->json(['data' => [
             'environment' => app()->environment(),
             'timezone' => config('parking.business_timezone'),
             'drivers' => $drivers,
-            'anpr_engine' => ['driver' => $drivers['anpr_engine']['driver'], 'available' => (bool) ($health['available'] ?? false), 'latency_ms' => $health['latency_ms'] ?? null],
+            'anpr_engine' => ['driver' => $drivers['anpr_engine']['driver'], 'available' => (bool) ($health['available'] ?? false), 'state' => $health['state'] ?? 'offline', 'latency_ms' => $health['latency_ms'] ?? null],
             'cameras' => [
+                'configured' => AnprSchema::cameras(),
+                'configuration_state' => AnprSchema::cameras() ? 'configured' : 'not_configured',
                 'total' => $cameras->count(),
                 'enabled' => $cameras->where('is_enabled', true)->count(),
                 'online' => $cameras->filter(fn ($c) => $c->is_enabled && $c->liveStatus($offlineAfter) === 'online')->count(),
@@ -50,7 +53,7 @@ class SystemStatusController extends Controller
             'gate' => [
                 'release_slot_on' => $settings->get('exit.release_slot_on'),
                 'last_command' => $lastGate ? ['status' => $lastGate->status, 'driver' => $lastGate->driver, 'at' => $lastGate->created_at?->toIso8601String()] : null,
-                'failed_last_24h' => GateCommand::where('status', 'failed')->where('created_at', '>=', now()->subDay())->count(),
+                'failed_last_24h' => AnprSchema::gateCommands() ? GateCommand::where('status', 'failed')->where('created_at', '>=', now()->subDay())->count() : 0,
             ],
             'verification_mode' => $settings->get('anpr.verification_mode'),
             'backups' => null, // no backup job exists in this backend; the UI shows "not monitored"

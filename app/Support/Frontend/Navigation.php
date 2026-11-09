@@ -24,10 +24,10 @@ final class Navigation
     public static function for(User $user): array
     {
         $groups = [
-            ['label' => 'Overview', 'items' => [
-                ['Dashboard', self::dashboardRoute($user), 'home', User::ROLES],
+            ['label' => 'Dashboard', 'items' => [
+                ['Business Overview', self::dashboardRoute($user), 'home', User::ROLES],
             ]],
-            ['label' => 'Gate operations', 'items' => [
+            ['label' => 'Parking Operations', 'items' => [
                 ['Check-In', 'ops.check-in', 'arrow-in', self::OPS],
                 ['Check-Out', 'ops.check-out', 'arrow-out', self::OPS],
                 ['ANPR review queue', 'ops.anpr.queue', 'camera', self::OPS],
@@ -37,9 +37,11 @@ final class Navigation
                 ['Vehicle register', 'ops.vehicles', 'list', self::OPS],
                 ['Reservations', 'ops.reservations', 'bookmark', self::OPS],
             ]],
-            ['label' => 'Safety & shifts', 'items' => [
+            ['label' => 'Safety & Support', 'items' => [
                 ['Safety tasks', 'ops.inspections', 'shield', self::OPS],
                 ['Report incident', 'ops.incidents.create', 'alert', self::OPS],
+                ['Incidents', 'manage.incidents', 'shield', self::MANAGE],
+                ['Customer support', 'manage.complaints', 'chat', self::MANAGE],
                 ['My shifts', 'ops.my-shifts', 'calendar', [User::ROLE_STAFF]],
             ]],
             ['label' => 'Management', 'items' => [
@@ -47,22 +49,19 @@ final class Navigation
                 ['Zones & slots', 'manage.zones', 'grid', self::MANAGE],
                 ['Vehicle categories', 'manage.categories', 'tag', self::MANAGE],
                 ['Packages & rates', 'manage.packages', 'cash', self::MANAGE],
-                ['Price calculator', 'manage.pricing', 'calculator', self::MANAGE],
-                ['Penalty types', 'manage.penalties', 'alert', self::MANAGE],
-                ['Payment methods', 'manage.payment-methods', 'card', self::MANAGE],
                 ['Shifts & roster', 'manage.shifts', 'calendar', self::MANAGE],
                 ['Cameras', 'manage.cameras', 'camera', self::MANAGE],
+            ]],
+            ['label' => 'Finance', 'items' => [
+                ['Price calculator', 'manage.pricing', 'calculator', self::MANAGE],
+                ['Payment methods', 'manage.payment-methods', 'card', self::MANAGE],
+                ['Penalty types', 'manage.penalties', 'alert', self::MANAGE],
                 ['Refunds', 'manage.refunds', 'refund', self::MANAGE],
-                ['Incidents', 'manage.incidents', 'shield', self::MANAGE],
-                ['Customer support', 'manage.complaints', 'chat', self::MANAGE],
-                ['Settings', 'manage.settings', 'cog', self::MANAGE],
-                ['System status', 'manage.system', 'pulse', self::MANAGE],
-                ['Roles & permissions', 'manage.roles', 'key', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_AUDITOR]],
+                ['Financial reports', 'reports.financial', 'cash', self::REPORTS],
+                ['Payments ledger', 'reports.payments', 'list', self::REPORTS],
             ]],
             ['label' => 'Reports', 'items' => [
-                ['Overview', 'reports.overview', 'chart', self::REPORTS],
-                ['Financial', 'reports.financial', 'cash', self::REPORTS],
-                ['Payments ledger', 'reports.payments', 'list', self::REPORTS],
+                ['Reports overview', 'reports.overview', 'chart', self::REPORTS],
                 ['Session ledger', 'reports.sessions', 'car', self::REPORTS],
                 ['Calendar', 'reports.calendar', 'calendar', self::REPORTS],
                 ['Occupancy', 'reports.occupancy', 'grid', self::REPORTS],
@@ -70,11 +69,14 @@ final class Navigation
                 ['Staff performance', 'reports.staff', 'users', self::REPORTS],
                 ['ANPR & cameras', 'reports.anpr', 'camera', self::REPORTS],
             ]],
-            ['label' => 'Audit', 'items' => [
+            ['label' => 'Audit & System', 'items' => [
                 ['Audit trail', 'audit.logs', 'key', self::AUDIT],
                 ['Audit findings', 'audit.findings', 'flag', self::AUDIT],
                 ['ANPR corrections', 'audit.corrections', 'camera', self::AUDIT],
                 ['Recognition history', 'audit.anpr-events', 'list', [User::ROLE_AUDITOR]],
+                ['Roles & permissions', 'manage.roles', 'key', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_AUDITOR]],
+                ['Settings', 'manage.settings', 'cog', self::MANAGE],
+                ['System status', 'manage.system', 'pulse', self::MANAGE],
             ]],
             ['label' => 'My parking', 'items' => [
                 ['Active parking', 'my.active', 'car', [User::ROLE_CUSTOMER]],

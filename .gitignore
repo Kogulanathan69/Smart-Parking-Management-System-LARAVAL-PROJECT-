@@ -1,8 +1,8 @@
 *.log
 .DS_Store
-.env
-.env.backup
-.env.production
+.env*
+!.env.example
+!**/.env.example
 .phpactor.json
 .phpunit.result.cache
 /.codex
@@ -26,3 +26,19 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /tests/e2e/output
+/demo-runtime/
+*.bak
+*.backup
+*.sql
+*.dump
+*.sqlite
+/-ErrorAction
+/-Pattern
+/storage/framework/sf_proc_*
+/storage/framework/pytest-*
+
+# Machine-specific isolated restore-test utilities are not distributable application code.
+/app/Console/Commands/AnprRestoreTestMigration.php*
+/app/Console/Commands/RepairAnprTestAccount.php*
+/scripts/repair-anpr-test-auth.ps1*
+/scripts/start-anpr-isolated-ui-test*.ps1

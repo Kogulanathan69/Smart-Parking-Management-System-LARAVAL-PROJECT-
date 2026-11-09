@@ -7,6 +7,7 @@
     </x-page-header>
     <template x-if="error"><div class="alert-danger" x-text="error"></div></template>
     <template x-if="ov"><div class="space-y-4">
+        <div x-show="ov.configured === false" class="alert-warning"><strong>ANPR reporting is not configured.</strong> Camera and recognition storage are unavailable. The zero counts below are an empty module state, not measured activity.</div>
         <div class="alert-info text-sm" x-text="ov.note"></div>
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
             <x-kpi label="Automatic readings" value="ov.automatic_events" icon="camera"/><x-kpi label="Read without help" value="$fmt.percent(ov.recognition_rate_percent)" icon="check"/><x-kpi label="Awaiting review" value="ov.pending_reviews" icon="clock"/>
@@ -15,7 +16,7 @@
         <div class="grid gap-4 lg:grid-cols-2">
             <section class="card card-pad"><h2 class="card-title">Readings by status</h2><ul class="mt-3 space-y-1 text-sm"><template x-for="[k, v] in Object.entries(ov.events_by_status || {})" :key="k"><li class="flex justify-between"><x-state kind="recognition" value="k"/><span class="font-semibold" x-text="v"></span></li></template></ul></section>
             <section class="card card-pad"><h2 class="card-title">Engine & cameras</h2>
-                <p class="mt-2 text-sm">Engine: <span :class="health?.engine?.available ? 'chip-success' : 'chip-danger'" x-text="health?.engine?.available ? `Available (${health.engine.driver}, ${health.engine.latency_ms ?? '—'} ms)` : `Unavailable (${health?.engine?.driver})`"></span></p>
+                <p class="mt-2 text-sm">Engine: <span :class="health?.engine?.available ? 'chip-success' : 'chip-danger'" x-text="health?.engine ? (({ not_configured: 'Not configured', starting: 'Starting', online: 'Online', offline: 'Offline', unreachable: 'Unreachable', recognition_error: 'Recognition error' })[health.engine.state] || 'Unknown') + ' (' + health.engine.driver + (health.engine.latency_ms !== null ? ', ' + health.engine.latency_ms + ' ms' : '') + ')' : 'Checking…'"></span></p>
                 <ul class="mt-3 divide-y divide-line text-sm"><template x-for="c in health?.cameras || []" :key="c.id ?? c.code"><li class="flex items-center justify-between gap-2 py-2"><span><strong x-text="c.code"></strong> <span class="text-ink-muted" x-text="c.name"></span><span class="block text-xs text-ink-muted" x-text="`Heartbeat ${$fmt.dateTime(c.last_heartbeat_at, 'never')}`"></span></span><x-state kind="camera" value="c.is_enabled === false ? 'disabled' : c.status"/></li></template></ul></section>
         </div>
         <section class="card"><h2 class="card-title px-4 pt-4">Recent camera health changes</h2><div class="table-wrap mt-2"><table class="tbl"><thead><tr><th>When</th><th>Component</th><th>Status</th><th>Message</th></tr></thead><tbody>

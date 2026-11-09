@@ -106,3 +106,15 @@ def test_settings_validation(monkeypatch):
     monkeypatch.setenv("ANPR_ENGINE", "magic")
     with pytest.raises(ConfigError):
         ServiceSettings.from_env()
+
+
+def test_configurable_resource_limits(monkeypatch):
+    monkeypatch.setenv("ANPR_SERVICE_TOKEN", TOKEN)
+    monkeypatch.setenv("ANPR_ENGINE", "stub")
+    monkeypatch.setenv("ANPR_MAX_IMAGE_BYTES", "2097152")
+    monkeypatch.setenv("ANPR_MAX_IMAGE_PIXELS", "12000000")
+    monkeypatch.setenv("ANPR_QUEUE_TIMEOUT_SECONDS", "2.5")
+    settings = ServiceSettings.from_env()
+    assert settings.max_image_bytes == 2097152
+    assert settings.max_image_pixels == 12000000
+    assert settings.queue_timeout_s == 2.5

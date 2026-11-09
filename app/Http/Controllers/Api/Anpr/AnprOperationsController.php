@@ -16,9 +16,11 @@ use App\Services\Anpr\AnprEventService;
 use App\Services\Anpr\AnprWorkflowService;
 use App\Services\QrTicketService;
 use App\Support\Anpr\SriLankaPlateNormalizer;
+use App\Support\Anpr\AnprSchema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 
@@ -40,6 +42,11 @@ class AnprOperationsController extends Controller
             'unused' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+
+        if (! AnprSchema::events()) {
+            return AnprEventResource::collection(new LengthAwarePaginator([], 0, $request->integer('per_page', 25), 1, ['path' => $request->url()]))
+                ->additional(['configuration_state' => 'not_configured']);
+        }
 
         return AnprEventResource::collection(AnprEvent::with('camera')
             ->when($f['direction'] ?? null, fn ($q, $v) => $q->where('direction', $v))
@@ -71,10 +78,20 @@ class AnprOperationsController extends Controller
     {
         $data = $request->validate([
             'direction' => ['required', 'in:entry,exit'],
-            'camera_code' => ['nullable', 'string', 'exists:anpr_cameras,code'],
+            'camera_code' => array_values(array_filter([
+                'nullable', 'string', AnprSchema::cameras() ? 'exists:anpr_cameras,code' : null,
+            ])),
             'image' => ['required', File::image()->types(config('parking.anpr.image_mimes'))->max(config('parking.anpr.image_max_kilobytes'))],
             'idempotency_key' => ['nullable', 'string', 'min:8', 'max:100'],
         ]);
+        // Validate the upload first so malformed/oversize files still receive a precise 422.
+        // Events and private image references cannot be safely recorded without this optional schema.
+        if (! AnprSchema::configured()) {
+            return response()->json(AnprSchema::unavailable('ANPR image recognition') + [
+                'manual_fallback' => true,
+            ], 409);
+        }
+
         $camera = isset($data['camera_code']) ? AnprCamera::where('code', $data['camera_code'])->first() : null;
         $event = $this->events->recognizeUpload($request->user(), $camera, $data['direction'], $request->file('image'), $data['idempotency_key'] ?? null);
 

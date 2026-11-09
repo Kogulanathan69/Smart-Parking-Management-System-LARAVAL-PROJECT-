@@ -72,13 +72,17 @@ class ServiceSettings:
             ocr_full_frame_fallback=_bool("ANPR_OCR_FULL_FRAME_FALLBACK", True),
             adaptive_review_enabled=_bool("ANPR_ADAPTIVE_REVIEW_ENABLED", False),
             max_image_bytes=int(os.environ.get("ANPR_MAX_IMAGE_BYTES", str(4 * 1024 * 1024))),
+            max_image_pixels=int(os.environ.get("ANPR_MAX_IMAGE_PIXELS", "25000000")),
             max_candidates=max(1, min(5, int(os.environ.get("ANPR_MAX_CANDIDATES", "3")))),
             max_concurrency=max(1, int(os.environ.get("ANPR_MAX_CONCURRENCY", "2"))),
+            queue_timeout_s=max(0.1, float(os.environ.get("ANPR_QUEUE_TIMEOUT_SECONDS", "5"))),
             threads=max(1, int(os.environ.get("ANPR_THREADS", "2"))),
             allow_lan_bind=_bool("ANPR_ALLOW_LAN_BIND", False),
         )
         if s.engine not in ("onnx", "stub"):
             raise ConfigError("ANPR_ENGINE must be 'onnx' (or 'stub' for tests only).")
+        if s.max_image_bytes < 1024 or s.max_image_pixels < 256:
+            raise ConfigError("ANPR image limits must be positive and large enough to accept a real image.")
         if s.bind_host not in ("127.0.0.1", "::1", "localhost") and not s.allow_lan_bind:
             raise ConfigError("The recognition service binds to loopback only. Set ANPR_ALLOW_LAN_BIND=true deliberately to expose it on the LAN.")
         return s

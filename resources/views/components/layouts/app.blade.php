@@ -19,7 +19,7 @@
 
 {{-- Sidebar --}}
 <div x-show="navOpen" x-cloak x-transition.opacity class="fixed inset-0 z-30 bg-navy-deep/60 lg:hidden" @click="navOpen = false" aria-hidden="true"></div>
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full transform overflow-hidden bg-navy-deep text-white shadow-2xl transition-transform lg:translate-x-0"
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full transform flex-col overflow-hidden bg-navy-deep text-white shadow-2xl transition-transform lg:translate-x-0"
        :class="navOpen && 'translate-x-0'" aria-label="Main navigation">
     <div class="flex h-20 items-center justify-between gap-2 border-b border-white/10 px-5">
         <a href="{{ route(\App\Support\Frontend\Navigation::dashboardRoute($user)) }}" class="flex items-center gap-2.5 text-white hover:text-white">
@@ -28,14 +28,18 @@
         </a>
         <button type="button" class="rounded-md p-2 text-white/80 hover:bg-white/10 lg:hidden" @click="navOpen = false" aria-label="Close menu"><x-icon name="x"/></button>
     </div>
-    <nav class="h-[calc(100vh-5rem)] overflow-y-auto px-3 pb-28">
+    <nav class="min-h-0 flex-1 overflow-y-auto px-3 pb-4" x-data="{ remembered: localStorage.getItem('pf.nav.group') }">
         @foreach ($nav as $group)
-            <div x-data="{ open: true }">
+            @php
+                $groupKey = \Illuminate\Support\Str::slug($group['label']);
+                $groupActive = collect($group['items'])->contains(fn ($item) => request()->routeIs($item['route']) || request()->routeIs($item['route'].'.*'));
+            @endphp
+            <div x-data="{ open: {{ $groupActive ? 'true' : 'false' }} || remembered === '{{ $groupKey }}' }">
                 <button type="button" class="nav-group flex w-full items-center justify-between hover:text-white" @click="open = !open" :aria-expanded="open.toString()">
                     <span>{{ $group['label'] }}</span>
                     <x-icon name="chevron-down" class="h-3.5 w-3.5 transition-transform" x-bind:class="!open && '-rotate-90'"/>
                 </button>
-                <ul x-show="open" class="space-y-0.5">
+                <ul x-show="open" x-transition.opacity.duration.150ms class="space-y-0.5" @click="localStorage.setItem('pf.nav.group', '{{ $groupKey }}')">
                     @foreach ($group['items'] as $item)
                         @php $active = request()->routeIs($item['route']) || request()->routeIs($item['route'].'.*'); @endphp
                         <li><a href="{{ route($item['route']) }}" class="nav-link" @if($active) aria-current="page" @endif>
@@ -45,7 +49,7 @@
             </div>
         @endforeach
     </nav>
-    <div class="pointer-events-none absolute inset-x-0 bottom-0 border-t border-white/10 bg-gradient-to-t from-navy-deep via-navy-deep to-navy-deep/90 px-5 py-4">
+    <div class="shrink-0 border-t border-white/10 bg-navy-deep px-5 py-4">
         <p class="text-sm font-bold text-white">ParkFlow</p><p class="text-xs text-white/55">Smart Parking Management</p>
     </div>
 </aside>

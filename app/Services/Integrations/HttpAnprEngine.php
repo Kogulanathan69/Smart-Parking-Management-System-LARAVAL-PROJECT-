@@ -24,6 +24,9 @@ class HttpAnprEngine implements AnprEngine
     public function recognize(string $imageBytes, string $mimeType): array
     {
         $started = hrtime(true);
+        if (! $this->configured()) {
+            return ['status' => 'engine_error', 'candidates' => [], 'plate_crop' => null, 'processing_ms' => 0, 'error_code' => 'anpr_engine_not_configured'];
+        }
         $attempts = 1 + max(0, (int) $this->settings->get('anpr.camera_retry_attempts'));
 
         for ($i = 1; $i <= $attempts; $i++) {
@@ -52,6 +55,16 @@ class HttpAnprEngine implements AnprEngine
                         'error_code' => $status === 'engine_error' ? 'anpr_engine_bad_response' : null,
                     ];
                 }
+                $remoteCode = (string) $response->json('error_code');
+                if (in_array($response->status(), [401, 403], true)) {
+                    return $this->errorResult($started, 'anpr_engine_unauthorized');
+                }
+                if ($response->status() === 503 && in_array($remoteCode, ['engine_not_ready', 'engine_busy'], true)) {
+                    return $this->errorResult($started, 'anpr_'.$remoteCode);
+                }
+                if (in_array($response->status(), [413, 415, 422], true)) {
+                    return $this->errorResult($started, 'anpr_engine_rejected_image');
+                }
                 Log::warning('ANPR service returned an error', ['status' => $response->status(), 'attempt' => $i]);
             } catch (ConnectionException) {
                 Log::warning('ANPR service unreachable or timed out', ['attempt' => $i]);
@@ -64,14 +77,37 @@ class HttpAnprEngine implements AnprEngine
     public function health(): array
     {
         $started = hrtime(true);
+        if (! $this->configured()) {
+            return ['available' => false, 'state' => 'not_configured', 'latency_ms' => null];
+        }
         try {
             $response = $this->client()->timeout(3)->get('/v1/health');
+            $body = (array) $response->json();
+            $available = $response->successful() && ($body['status'] ?? null) === 'ok';
+            $state = $available ? 'online' : (($body['status'] ?? null) === 'starting' ? 'starting' : 'recognition_error');
 
-            return ['available' => $response->successful() && ($response->json('status') === 'ok'), 'latency_ms' => $this->elapsed($started),
-                'detail' => array_intersect_key((array) $response->json(), array_flip(['status', 'detector', 'ocr', 'version']))];
+            return ['available' => $available, 'state' => $state, 'latency_ms' => $this->elapsed($started),
+                'detail' => array_intersect_key($body, array_flip(['status', 'detector', 'ocr', 'version']))];
         } catch (ConnectionException) {
-            return ['available' => false, 'latency_ms' => null];
+            return ['available' => false, 'state' => 'unreachable', 'latency_ms' => null];
         }
+    }
+
+    private function configured(): bool
+    {
+        $url = trim((string) config('parking.anpr.service_url'));
+        $token = trim((string) config('parking.anpr.service_token'));
+        $parts = parse_url($url);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        return $token !== ''
+            && in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            && in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+    }
+
+    private function errorResult(int $started, string $code): array
+    {
+        return ['status' => 'engine_error', 'candidates' => [], 'plate_crop' => null, 'processing_ms' => $this->elapsed($started), 'error_code' => $code];
     }
 
     private function client()
