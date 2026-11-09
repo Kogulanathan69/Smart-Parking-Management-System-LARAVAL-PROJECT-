@@ -1,0 +1,28 @@
+/* Customer vehicle cards and modal use the shared premium emerald design language. */
+.pf-vehicles .pf-vehicle-card {
+    position: relative; overflow: hidden; padding: 22px;
+    border: 1px solid #e2e8e5; border-radius: 14px;
+    background: linear-gradient(135deg, #ffffff 0%, #f7fcf9 100%);
+    box-shadow: 0 5px 18px rgb(16 42 35 / 0.05);
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.pf-vehicles .pf-vehicle-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: #087f46; }
+.pf-vehicles .pf-vehicle-card:hover { transform: translateY(-2px); border-color: #bbf7d0; box-shadow: 0 12px 28px rgb(8 127 70 / 0.10); }
+.pf-vehicles .pf-vehicle-plate { display: inline-block; overflow-wrap: anywhere; color: #102a23; font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; letter-spacing: 0.08em; }
+.pf-vehicles .pf-vehicle-details { margin-top: 14px; color: #64748b; font-size: 0.875rem; line-height: 1.7; }
+.pf-vehicles .pf-vehicle-action { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 7px 14px; border: 1px solid #cbd8d2; border-radius: 9px; background: #fff; color: #087f46; font-size: 0.8125rem; font-weight: 650; transition: background 150ms ease, border-color 150ms ease; }
+.pf-vehicles .pf-vehicle-action:hover { border-color: #87e6b2; background: #ecfdf5; }
+.pf-vehicles .pf-vehicle-action:disabled { opacity: 0.45; cursor: not-allowed; }
+.pf-vehicle-modal { border: 1px solid #e2e8e5; border-radius: 16px; background: #fff; color: #102a23; box-shadow: 0 24px 60px rgb(2 44 34 / 0.22); }
+.pf-vehicle-modal > div:first-child, .pf-vehicle-modal > div:last-child { border-color: #e2e8e5; background: #fff; }
+.pf-vehicle-modal h2, .pf-vehicle-modal .label { color: #102a23; }
+.pf-vehicle-modal .hint, .pf-vehicle-modal .text-ink-muted { color: #64748b; }
+.pf-vehicle-modal .field-error { color: #dc2626; }
+.pf-vehicle-modal button[aria-label="Close"] { color: #64748b; }
+.pf-vehicle-modal button[aria-label="Close"]:hover { background: #ecfdf5; }
+.pf-vehicle-modal .input, .pf-vehicle-modal .input-plate { border: 1px solid #cbd8d2; border-radius: 10px; background: #fff; color: #102a23; }
+.pf-vehicle-modal .input:focus, .pf-vehicle-modal .input-plate:focus { border-color: #087f46; outline: 3px solid rgb(8 127 70 / 0.14); }
+.pf-vehicle-modal .input::placeholder, .pf-vehicle-modal .input-plate::placeholder { color: #94a3b8; }
+.pf-vehicle-modal #mv-p:-webkit-autofill, .pf-vehicle-modal #mv-p:-webkit-autofill:hover, .pf-vehicle-modal #mv-p:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #fff inset; -webkit-text-fill-color: #102a23; caret-color: #087f46; }
+@media (max-width: 640px) { .pf-vehicles .pf-vehicle-card { padding: 18px; } .pf-vehicle-modal { border-radius: 16px 16px 0 0; } }
+@media (prefers-reduced-motion: reduce) { .pf-vehicles .pf-vehicle-card, .pf-vehicles .pf-vehicle-action { transition: none; } }

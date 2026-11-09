@@ -1,0 +1,19 @@
+{
+  "_comment": "Shared by PHP (tests/Feature/AnprNormalizerParityTest.php) and Python (tests/test_normalizer.py). Both normalisers must agree on every case.",
+  "cases": [
+    {"raw": "WP CAB-1234", "normalized": "WPCAB1234", "display": "WP CAB-1234", "format": "modern_province", "province": "WP", "corrected": false},
+    {"raw": "cab 1234", "normalized": "CAB1234", "display": "CAB-1234", "format": "modern", "province": null, "corrected": false},
+    {"raw": "KX-4455", "normalized": "KX4455", "display": "KX-4455", "format": "modern", "province": null, "corrected": false},
+    {"raw": "NW BBC 1O23", "normalized": "NWBBC1023", "display": "NW BBC-1023", "format": "modern_province", "province": "NW", "corrected": true},
+    {"raw": "CA8-I234", "normalized": "CAB1234", "display": "CAB-1234", "format": "modern", "province": null, "corrected": true},
+    {"raw": "WPCAB1234", "normalized": "WPCAB1234", "display": "WP CAB-1234", "format": "modern_province", "province": "WP", "corrected": false},
+    {"raw": "SPAB1234", "normalized": "SPAB1234", "display": "SP AB-1234", "format": "modern_province", "province": "SP", "corrected": false},
+    {"raw": "C4B-1234", "normalized": "C4B1234", "display": "C4B-1234", "format": "unknown", "province": null, "corrected": false},
+    {"raw": "19-1234", "normalized": "191234", "display": "19-1234", "format": "legacy_numeric", "province": null, "corrected": false},
+    {"raw": "250 ශ්‍රී 1234", "normalized": "2501234", "display": "250-1234", "format": "legacy_numeric", "province": null, "corrected": false},
+    {"raw": "191234", "normalized": "191234", "display": "191234", "format": "unknown", "province": null, "corrected": false},
+    {"raw": "CD-1234-X", "normalized": "CD1234X", "display": "CD-1234-X", "format": "unknown", "province": null, "corrected": false},
+    {"raw": "  ", "normalized": null, "display": null, "format": "unreadable", "province": null, "corrected": false},
+    {"raw": "A1", "normalized": null, "display": null, "format": "unreadable", "province": null, "corrected": false}
+  ]
+}
