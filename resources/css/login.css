@@ -1,0 +1,132 @@
+/* Login-only reference composition. Other guest pages retain their existing layout. */
+.pf-login {color:#07171b;background:#f5fcf8}
+.pf-login>div {grid-template-columns:minmax(0,61.8fr) minmax(0,38.2fr)}
+.pf-hero {min-height:740px;height:100svh}
+.pf-hero>div:first-child,.pf-hero>div:nth-child(2){display:none}
+.pf-header {padding:28px 7.8% 0;gap:20px;align-items:center}
+.pf-header>a>span:first-child,.pf-brand>span:first-child {width:54px;height:54px;font-size:40px;border-radius:13px;background:linear-gradient(145deg,#00e17a,#008344);box-shadow:0 4px 10px #008b4530}
+.pf-header>a>span:last-child>span:first-child {font-size:31px;line-height:1.15}
+.pf-header>a>span:last-child>span:last-child {font-size:14px;color:#fff;letter-spacing:0}
+.pf-header>div {display:flex;font-size:13px;gap:12px;white-space:nowrap}
+.pf-intro {padding:28px 8% 0}
+.pf-intro h2 {font-size:clamp(34px,3.25vw,58px);font-weight:850;line-height:1.04;letter-spacing:-1.4px}
+.pf-intro h2 span {color:#7ff2b8}
+.pf-intro p {font-size:clamp(14px,1.25vw,21px);line-height:1.4;color:#f0fff9;max-width:100%;margin-top:14px}
+.pf-art {inset:0;z-index:0;background-size:cover!important;background-position:center!important}
+.pf-features {position:relative;z-index:30;display:grid;grid-template-columns:1.1fr 1.03fr 1fr 1.1fr;gap:12px;margin:18px 4% 0 8%}
+.pf-features>div {display:flex;align-items:center;gap:10px;border:1px solid #00bd715c;border-radius:16px;background:#003f2ca8;box-shadow:inset 0 1px 6px #00ef6e12;min-width:0}
+.pf-features>div>span {display:grid;place-items:center;align-self:stretch;min-width:48px;background:#00b65c21;border-radius:14px;color:#00ed91}
+.pf-features svg {width:33px;height:33px}
+.pf-features p {padding:9px 4px 9px 0;line-height:1.4;color:white}
+.pf-features strong {display:block;font-size:clamp(10px,.94vw,16px);white-space:nowrap;letter-spacing:-.4px}
+.pf-features small {display:block;font-size:clamp(9px,.78vw,13px);white-space:nowrap}
+.pf-plate {top:47.4%;bottom:auto;right:26.5%;width:23.5%;padding:12px;border-color:#00dc86;background:#00432dc9}
+.pf-plate>div:first-child {font-size:14px;margin-bottom:8px;color:white}
+.pf-plate>div:nth-child(2) {font-size:21px;padding:3px 5px;letter-spacing:-.5px}
+.pf-plate dl {margin-top:8px;line-height:18px;font-size:12px;padding:0 10px}
+.pf-plate dt {color:#d4e6df}
+.pf-plate dd:last-child {color:#00f997}
+.pf-ticket {bottom:19.5%;left:auto;right:18.5%;transform:none;translate:none;width:28%;padding:10px;border:2px solid #6bf7ba;border-radius:20px;gap:10px}
+.pf-ticket>svg {height:64px;width:64px;background:white}
+.pf-ticket>span:last-child {background:linear-gradient(135deg,#00d979,#005c38);color:white;align-self:stretch;border-radius:8px;width:32px;height:auto}
+.pf-ticket>span:nth-child(2)>span:first-child {font-size:15px;white-space:nowrap}
+.pf-ticket>span:nth-child(2)>span:last-child {font-size:11px;white-space:nowrap}
+.pf-benefits {inset-inline:4.8%;bottom:3.5%;padding:14px 12px;border:1px solid #00d98599;border-radius:40px;background:#00432cde}
+.pf-benefits>div {gap:14px;border-color:#00d98580}
+.pf-benefits svg {width:30px;height:30px;color:#00e78b}
+.pf-benefits span {font-size:13px;line-height:19px}
+.pf-main {padding:40px 6%;overflow:visible;background:radial-gradient(ellipse at 100% 45%,#d5f9e9,transparent 65%),#f7fcfa;height:100svh;min-height:740px}
+.pf-card-wrap {max-width:560px}
+.pf-card {border:0;border-radius:25px;padding:24px 34px 85px;box-shadow:0 12px 28px #00a16c24;background:#ffffffed}
+.pf-card>div:first-child {width:240px;height:110px;right:-40px;top:14px;border:0;border-top:22px solid #54e8a866;border-radius:65% 50%;transform:rotate(-22deg);box-shadow:0 -20px 0 #a0f4cf40}
+.pf-brand {display:flex;margin-bottom:24px;gap:16px}
+.pf-brand>span:last-child>span:first-child {font-size:29px;color:#07171b;letter-spacing:-1px}
+.pf-brand>span:last-child>span:last-child {font-size:13px;color:#21334e}
+.pf-content h1 {font-size:34px;line-height:1.15;color:#06151a;font-weight:850}
+.pf-content h1+p {font-size:16px;line-height:1.35;max-width:none;color:#536487;margin-top:10px}
+.pf-form-slot {margin-top:20px}
+.pf-login .label {font-size:15px;color:#0b1418;margin-bottom:7px;font-weight:650}
+.pf-login .input {height:46px;border:1px solid #d0d8e3;border-radius:12px;background:transparent;padding-left:35px;font-size:15px;color:#182c3b;box-shadow:0 1px 2px #0e233409}
+.pf-login .input::placeholder {color:#57698a;opacity:1}
+.pf-login form>div+div {margin-top:16px}
+.pf-login form>div:nth-last-child(2) {font-size:14px;margin-top:20px;margin-bottom:22px}
+.pf-login .check {width:21px;height:21px;accent-color:#00643d;border-radius:4px}
+.pf-login form a {color:#008d3c}
+.pf-login .btn-primary {height:51px;border-radius:12px;font-size:20px;background:linear-gradient(#008f49,#003c2b);border:1px solid #00ad61;box-shadow:0 5px 10px #00764a26}
+.pf-login .btn-primary:hover {filter:brightness(1.12)}
+.pf-login :is(a,button,input):focus-visible {outline:3px solid #12b976;outline-offset:3px}
+.pf-form-slot>div {margin-block:22px}
+.pf-form-slot>a {padding:12px 14px;border-color:#9aebc8;background:linear-gradient(#f5fdf9,#e6faf1);gap:14px}
+.pf-form-slot>a>span:first-child {background:transparent;box-shadow:none;color:#00994a}
+.pf-form-slot>a strong {font-size:16px;color:#07171b}
+.pf-form-slot>a>span:nth-child(2)>span {font-size:12px;line-height:18px;color:#182e42}
+.pf-skyline {position:absolute;bottom:7px;left:24px;right:24px;display:flex;align-items:flex-end;justify-content:space-between;gap:5px;height:50px;color:#52dfa0;opacity:.65;pointer-events:none}
+.pf-skyline>span {height:var(--building-height);width:20px;background:repeating-linear-gradient(0deg,transparent 0 5px,#fff9 5px 7px),repeating-linear-gradient(90deg,#a4efd0 0 5px,#fff9 5px 7px);clip-path:polygon(0 12%,50% 0,100% 12%,100% 100%,0 100%)}
+.pf-skyline svg {width:49px;height:36px;flex-shrink:0;color:#00cd73}
+.pf-skyline b {align-self:center;background:#00cd73;color:white;padding:0 5px;font-size:21px;border-radius:3px}
+.pf-card-wrap>p {font-size:14px;color:#4b5c7b;margin-top:26px;white-space:nowrap}
+@media(min-width:1024px) and (max-width:1400px){.pf-header{padding-inline:6%;gap:10px}.pf-header>div{gap:7px;font-size:11px}.pf-header>a{gap:9px}.pf-header>a>span:last-child>span:first-child{font-size:26px}.pf-header>a>span:last-child>span:last-child{font-size:11px}.pf-header>a>span:first-child{width:46px;height:46px;font-size:33px}.pf-intro{padding-top:24px}.pf-features{gap:8px}.pf-features>div{gap:6px}.pf-features>div>span{min-width:35px}.pf-features svg{width:26px;height:26px}.pf-main{padding:30px 6%}.pf-card{padding:24px 26px 75px}.pf-brand{margin-bottom:20px}.pf-content h1{font-size:30px}.pf-content h1+p{font-size:14px}.pf-form-slot{margin-top:18px}.pf-plate{width:25%;right:25%;padding:10px}.pf-plate>div:first-child{font-size:12px}.pf-ticket{width:31%;right:18%}.pf-ticket>svg{width:48px;height:48px}.pf-benefits span{font-size:11px}.pf-benefits>div{gap:9px}}
+@media(max-width:1023px){.pf-login>div{display:block}.pf-hero{display:none}.pf-main{min-height:100svh;height:auto;padding:35px 24px}.pf-card-wrap>a{display:none}.pf-card{padding:28px 30px 85px}.pf-brand{display:flex}.pf-content h1{font-size:32px}.pf-card-wrap>p{white-space:normal;font-size:12px}}
+@media(max-width:420px){.pf-main{padding:22px 14px}.pf-card{padding:24px 22px 78px}.pf-brand{gap:12px}.pf-brand>span:last-child>span:first-child{font-size:26px}.pf-brand>span:last-child>span:last-child{font-size:11px}.pf-content h1+p{font-size:14px}.pf-login form>div:nth-last-child(2){font-size:12px}.pf-form-slot>a strong{font-size:14px}}
+@media(min-width:1024px) and (min-height:950px){.pf-card{padding-top:32px;padding-bottom:95px}.pf-brand{margin-bottom:30px}.pf-login .input{height:49px}.pf-login form>div+div{margin-top:20px}.pf-form-slot{margin-top:25px}.pf-content h1+p{font-size:18px}}
+.pf-login .label {display:flex;align-items:center;gap:5px}.pf-login .label svg {height:21px;width:21px;margin-right:7px;flex-shrink:0}.pf-login .input[aria-invalid="true"] {border-color:#c33535}
+
+/* Let content establish the page height: errors and browser zoom may need scrolling. */
+@media (min-width:1024px) {
+    .pf-login {overflow:visible;height:auto}
+    .pf-login>div {min-height:100svh;height:auto;align-items:stretch}
+    .pf-hero {height:auto;min-height:740px}
+    .pf-main {height:auto;min-height:100svh;padding-block:32px}
+    .pf-art {background-size:100% auto!important;background-position:center bottom!important}
+    .pf-card {padding-bottom:7px}
+    .pf-skyline {position:relative;inset:auto;margin:30px -10px 0;height:53px}
+    .pf-card-wrap>p {white-space:normal;margin-top:20px;line-height:20px}
+    .pf-ticket {right:18%;width:max-content;max-width:34%;bottom:18%}
+    .pf-benefits {bottom:24px}
+    .pf-features strong {font-size:clamp(12px,.94vw,16px);white-space:normal;line-height:1.25}
+    .pf-features small {font-size:12px;white-space:normal;line-height:1.3;margin-top:3px}
+    .pf-benefits span {font-size:12px;line-height:18px}
+}
+/* Compact vertical rhythm, without reducing the usable form-control sizes. */
+@media (min-width:1024px) and (max-height:820px) {
+    .pf-hero {min-height:720px}
+    .pf-header {padding-top:20px}
+    .pf-intro {padding-top:20px}
+    .pf-intro h2 {font-size:clamp(34px,3vw,48px)}
+    .pf-intro p {margin-top:10px;font-size:16px;line-height:1.35}
+    .pf-features {margin-top:14px}
+    .pf-features p {padding-block:8px}
+    .pf-main {padding-block:20px}
+    .pf-card {padding-top:20px;padding-inline:26px}
+    .pf-brand {margin-bottom:16px}
+    .pf-brand>span:first-child {height:46px;width:46px;font-size:34px}
+    .pf-content h1 {font-size:30px}
+    .pf-content h1+p {margin-top:8px;font-size:14px;line-height:1.4}
+    .pf-form-slot {margin-top:16px}
+    .pf-login form>div+div {margin-top:12px}
+    .pf-login form>div:nth-last-child(2) {margin-top:16px;margin-bottom:16px}
+    .pf-login .input {height:44px}
+    .pf-login .btn-primary {height:48px}
+    .pf-form-slot>div {margin-block:16px}
+    .pf-form-slot>a {padding:10px 12px}
+    .pf-skyline {margin-top:22px}
+    .pf-card-wrap>p {margin-top:16px}
+    .pf-plate {top:45%;right:24%;width:25%;padding:10px}
+    .pf-plate>div:first-child {margin-bottom:6px;font-size:12px}
+    .pf-plate>div:nth-child(2) {font-size:20px}
+    .pf-plate dl {margin-top:6px;line-height:17px;padding-inline:6px}
+    .pf-ticket {bottom:17%;padding:8px;gap:8px}
+    .pf-ticket>svg {height:48px;width:48px}
+    .pf-benefits {padding-block:11px;bottom:20px}
+    .pf-benefits svg {height:26px;width:26px}
+}
+@media (min-width:1024px) and (max-width:1199px) {
+    .pf-login>div {grid-template-columns:minmax(0,57fr) minmax(0,43fr)}
+    .pf-header {flex-wrap:wrap;row-gap:8px}
+    .pf-header>div {margin-top:0}
+    .pf-features {grid-template-columns:repeat(2,minmax(0,1fr));margin-right:8%;gap:8px}
+    .pf-intro p br {display:none}
+    .pf-plate {top:53%;right:8%;width:37%}
+    .pf-benefits>div {flex-direction:column;gap:4px;padding-inline:3px}
+    .pf-benefits span {font-size:12px;line-height:16px}
+}

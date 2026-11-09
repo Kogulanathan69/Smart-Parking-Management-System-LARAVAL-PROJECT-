@@ -1,0 +1,2 @@
+<template x-if="loading && !{{ $var }}"><div class="card card-pad space-y-3"><div class="skeleton h-6 w-1/3"></div><div class="skeleton h-4 w-2/3"></div><div class="skeleton h-24"></div><span class="sr-only">Loading…</span></div></template>
+<template x-if="error && !{{ $var }}"><div class="alert-danger" role="alert"><p x-text="notFound ? 'This record was not found, or you do not have access to it.' : error"></p><button class="btn-secondary btn-sm mt-2" @click="reload()">Try again</button></div></template>
